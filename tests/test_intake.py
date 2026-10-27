@@ -128,10 +128,31 @@ class IntakeApiTests(unittest.TestCase):
         st, r = self.call("POST", "/api/integrations/check", "ana")
         self.assertEqual(st, 200)
         states = {row["sponsor"]: row["state"] for row in r["status"]["rows"]}
-        self.assertEqual(states["Meterless"], "LIVE")  # the in-process World Model really ran
+        self.assertEqual(states["Meterless World Model"], "LIVE")  # the in-process World Model really ran
+        self.assertEqual(states["Meterless Scout Intent"], "LIVE")
         self.assertIn(states["Zetaris"], ("FALLBACK", "LIVE", "UNAVAILABLE", "CONFIGURED_UNVERIFIED"))
         self.assertTrue(any("World Model" in c for c in r["calls"]))
         self.assertEqual(self.call("POST", "/api/integrations/check", "nobody")[0], 401)
+
+    def test_dossier_trace_and_correlation_id(self):
+        req = urllib.request.Request(self.base + "/api/cases/CASE-1001/dossier", headers={"X-Demo-User": "ana", "X-Request-ID": "corr-test-0001"})
+        with urllib.request.urlopen(req, timeout=10) as r:
+            self.assertEqual(r.headers["X-Request-ID"], "corr-test-0001")
+            self.assertIn("attachment", r.headers["Content-Disposition"])
+            d = json.loads(r.read())
+        self.assertIn("Not a binding financial decision", d["disclaimer"])
+        self.assertEqual(d["decision"]["proof_status"], "VERIFIED")
+        self.assertEqual([t["stage"] for t in d["trace"]],
+                         ["intake", "policy", "counterfactual", "federation", "hypothesis", "guard", "adversarial", "decision"])
+        self.assertNotIn("nvapi-", json.dumps(d))
+        self.assertEqual(self.call("GET", "/api/cases/CASE-1003/dossier", "rep")[0], 403)
+
+    def test_live_check_runs_real_diagnostics(self):
+        st, r = self.call("POST", "/api/integrations/check", "ana")
+        by = {c["key"]: c for c in r["checks"]}
+        self.assertTrue(by["world_model"]["ok"] and by["hmem"]["ok"] and by["scout"]["ok"])
+        self.assertFalse(by["zetaris"]["ran"])   # not configured here: reported, never simulated
+        self.assertFalse(by["nemotron"]["ran"])
 
     def test_benchmark_run_permission(self):
         self.assertEqual(self.call("POST", "/api/benchmark/run", "rep")[0], 403)

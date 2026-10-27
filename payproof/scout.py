@@ -103,6 +103,17 @@ class Scout:
 
     def decide(self, intent: str, user: dict, params: dict | None = None, texts: dict | None = None,
                escalate: bool = False, parent_id: str | None = None) -> dict:
+        from .integrations import record
+        t0 = time.monotonic()
+        try:
+            c = self._decide(intent, user, params, texts, escalate, parent_id)
+        except ScoutError:
+            record("scout", (time.monotonic() - t0) * 1000, blocked=1)
+            raise
+        record("scout", (time.monotonic() - t0) * 1000, decisions=1)
+        return c
+
+    def _decide(self, intent, user, params, texts, escalate, parent_id):
         # 1. Sense
         spec = INTENTS.get(intent)
         if not spec:

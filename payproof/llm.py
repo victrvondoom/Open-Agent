@@ -27,7 +27,8 @@ NVIDIA_BASE_URL = "https://integrate.api.nvidia.com/v1"  # organizer troubleshoo
 DEFAULT_MODEL = "nvidia/nemotron-3-ultra-550b-a55b"
 
 # Runtime truth: LIVE only after a real completion from the configured endpoint succeeded in this process.
-_STATUS = {"last_ok_at": None, "last_error": None, "ok_calls": 0, "failed_calls": 0, "served_model": None, "model_listed": None}
+_STATUS = {"last_ok_at": None, "last_error": None, "last_error_code": None, "ok_calls": 0, "failed_calls": 0,
+           "served_model": None, "model_listed": None, "last_latency_ms": None, "tokens_total": 0}
 
 
 def status():
@@ -62,6 +63,34 @@ def verify_model(cfg=None) -> dict:
     nemotron = sorted(i for i in ids if i and "nemotron" in i.lower())
     return {"ok": listed, "model": cfg["model"], "listed": listed, "nemotron_models_available": nemotron[:20],
             "reason": None if listed else "configured model id not in /models"}
+
+
+def ping(cfg=None) -> dict:
+    """One minimal real chat completion (diagnostic). Updates runtime status like any call."""
+    cfg = cfg or config()
+    if not cfg["enabled"]:
+        return {"ok": False, "reason": "not configured"}
+    body = json.dumps({"model": cfg["model"], "temperature": 0, "max_tokens": 8,
+                       "messages": [{"role": "user", "content": "Reply with the single word: ok"}]}).encode()
+    headers = {"Content-Type": "application/json", **({"Authorization": f"Bearer {cfg['api_key']}"} if cfg["api_key"] else {})}
+    t0 = time.monotonic()
+    try:
+        req = urllib.request.Request(cfg["base_url"] + "/chat/completions", data=body, headers=headers, method="POST")
+        with urllib.request.urlopen(req, timeout=float(os.environ.get("LLM_TIMEOUT_S", "25"))) as resp:
+            payload = json.loads(resp.read())
+        ms = round((time.monotonic() - t0) * 1000)
+        _STATUS.update(last_ok_at=time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime()), served_model=payload.get("model", cfg["model"]),
+                       last_latency_ms=ms)
+        _STATUS["ok_calls"] += 1
+        _STATUS["tokens_total"] += int((payload.get("usage") or {}).get("total_tokens") or 0)
+        return {"ok": True, "latency_ms": ms, "model": payload.get("model"), "usage": payload.get("usage")}
+    except Exception as exc:
+        if isinstance(exc, urllib.error.HTTPError):
+            exc.close()
+        code = getattr(exc, "code", None)
+        _STATUS.update(last_error=f"{type(exc).__name__}{f' {code}' if code else ''}", last_error_code=code or type(exc).__name__)
+        _STATUS["failed_calls"] += 1
+        return {"ok": False, "latency_ms": round((time.monotonic() - t0) * 1000), "reason": _STATUS["last_error"]}
 
 
 SYSTEM = ("You are a finance-operations analyst. You may only restate facts given to you. "
@@ -114,8 +143,10 @@ class ModelClient:
                 raise ValueError("claims not a list")
             meta.update(model=payload.get("model", self.cfg["model"]), provider=self.cfg["provider"], status="ok",
                         usage=payload.get("usage"))
-            _STATUS.update(last_ok_at=time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime()), served_model=meta["model"])
+            _STATUS.update(last_ok_at=time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime()), served_model=meta["model"],
+                           last_latency_ms=round((time.monotonic() - t0) * 1000))
             _STATUS["ok_calls"] += 1
+            _STATUS["tokens_total"] += int((payload.get("usage") or {}).get("total_tokens") or 0)
             result = [{"text": str(c.get("text", ""))[:400], "cites": [str(x) for x in c.get("cites", [])][:8], "origin": "model"}
                       for c in claims[:4] if isinstance(c, dict)]
         except Exception as exc:
@@ -123,7 +154,7 @@ class ModelClient:
                 exc.close()
             code = getattr(exc, "code", None)
             meta.update(status="error_fallback", error=f"{type(exc).__name__}{f' {code}' if code else ''}")
-            _STATUS.update(last_error=meta["error"])
+            _STATUS.update(last_error=meta["error"], last_error_code=code if code else type(exc).__name__)
             _STATUS["failed_calls"] += 1
             result = fallback_claims
         meta["latency_ms"] = round((time.monotonic() - t0) * 1000)

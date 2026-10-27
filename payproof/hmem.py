@@ -631,6 +631,8 @@ class PrecedentMemory:
         for m in self.hmem.store.all():
             if m.get("missionId") == case_id and m["source"] == self.SOURCE_PREFIX + action["id"]:
                 return m  # idempotent per action
+        from .integrations import record
+        record("hmem", None, writes=1)
         content = (f"Precedent {case_id}: " + "; ".join(PATTERN_LABELS.get(p, p) for p in patterns)
                    + f". Outcome: {investigation['proof_status']} / {investigation['verdict']}; "
                    f"action {action['type']} approved by {action['approved_by']} and verified.")
@@ -645,8 +647,12 @@ class PrecedentMemory:
         own = investigation["case_id"]
         if not patterns:
             return {"patterns": [], "precedents": [], "trace": None}
+        import time as _t
+        from .integrations import record
+        t0 = _t.monotonic()
         res = self.hmem.query(pattern_query(patterns), top_n=top_n, threshold=0.2,
                               where=lambda m: m.get("missionId") != own and m["source"].startswith(self.SOURCE_PREFIX))
+        record("hmem", (_t.monotonic() - t0) * 1000, recalls=1)
         out = []
         for it in res["memories"]:
             m = it["memory"]

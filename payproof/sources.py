@@ -98,7 +98,8 @@ SQL_TEMPLATE = ("SELECT record_id, record_type, payload_json FROM {db}.{system}_
 CASE_KEY_RE = re.compile(r"CASE-\d{4}")
 IDENT_RE = re.compile(r"[A-Za-z_][A-Za-z0-9_]*")
 
-_ZETARIS_STATUS = {"last_ok_at": None, "last_error": None, "systems_served": [], "rows": 0, "url_host": None}
+_ZETARIS_STATUS = {"last_ok_at": None, "last_error": None, "last_error_code": None, "systems_served": [], "rows": 0,
+                   "url_host": None, "last_latency_ms": None, "queries_ok": 0, "queries_failed": 0}
 
 
 def zetaris_status():
@@ -162,14 +163,18 @@ class ZetarisSource(LocalFixtureSource):
         req = urllib.request.Request(self.rest_url + "/sql-editor/sqls/run", data=body, method="POST", headers={
             "Authorization": f"Bearer {self._key}", "X-Org-ID": self.org_id, "X-Request-ID": str(uuid.uuid4()),
             "Content-Type": "application/json"})
+        t0 = time.monotonic()
         try:
             with urllib.request.urlopen(req, timeout=self.timeout_s) as resp:
                 out = json.loads(resp.read().decode() or "null")
         except urllib.error.HTTPError as e:
             e.close()
+            _ZETARIS_STATUS.update(last_error_code=e.code, queries_failed=_ZETARIS_STATUS["queries_failed"] + 1)
             raise ZetarisError(f"HTTP {e.code}") from e  # body not echoed: may contain request details
         except (urllib.error.URLError, OSError, TimeoutError) as e:
+            _ZETARIS_STATUS.update(last_error_code="unreachable", queries_failed=_ZETARIS_STATUS["queries_failed"] + 1)
             raise ZetarisError(f"unreachable ({type(e).__name__})") from e
+        _ZETARIS_STATUS.update(last_latency_ms=round((time.monotonic() - t0) * 1000, 1), queries_ok=_ZETARIS_STATUS["queries_ok"] + 1)
         if not isinstance(out, dict) or not isinstance(out.get("data"), list):
             raise ZetarisError("response has no data array")
         return out["data"]

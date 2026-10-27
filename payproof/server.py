@@ -9,12 +9,13 @@ import re
 import sys
 import threading
 import time
+import uuid
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from pathlib import Path
 from urllib.parse import parse_qs, urlparse
 
 from .actions import USERS, ActionError, ActionService, late_credit_note
-from .integrations import integration_status
+from .integrations import integration_status, record_investigation
 from .intake import IntakeError, create_case, template_from_case
 from .scout import ScoutError
 from .sources import make_source, load_plans
@@ -90,10 +91,13 @@ def make_handler(app: App):
         def log_message(self, *a):
             pass
 
-        def _send(self, status, body, ctype="application/json"):
+        def _send(self, status, body, ctype="application/json", filename=None):
             data = body if isinstance(body, bytes) else json.dumps(body, default=str).encode()
             self.send_response(status)
             self.send_header("Content-Type", ctype)
+            self.send_header("X-Request-ID", self._rid)
+            if filename:
+                self.send_header("Content-Disposition", f'attachment; filename="{filename}"')
             self.send_header("Content-Length", str(len(data)))
             self.send_header("Cache-Control", "no-store")
             self.send_header("X-Content-Type-Options", "nosniff")
@@ -140,21 +144,10 @@ def make_handler(app: App):
                 return 200, integration_status()
             if method == "POST" and path == "/api/integrations/check":
                 u = self._viewer()
-                from . import llm
-                demo = next((c for c in app.source.list_case_ids()), None)
-                r = app.svc.investigate(demo, use_model=True)
-                r.pop("_world", None)
-                calls = [f"Meterless World Model: {r['world_model']['entities']} entities ingested, cross-check "
-                         f"{'passed' if (r['world_model']['cross_check'] or {}).get('passed') else 'n/a'}"]
-                prov = sorted(set(r["sources_meta"]["provenance"].values()))
-                calls.append(f"sources: {', '.join(prov)}")
-                calls += [f"model {m['role']}: {m['status']}" + (f" ({m['error']})" if m.get("error") else "") for m in r["telemetry"]["model_calls"]]
-                if llm.config()["enabled"]:
-                    v = llm.verify_model()
-                    calls.append(f"/models: {'listed' if v['ok'] else v.get('reason')}")
-                app.svc.audit.append("INTEGRATION_CHECK", u["id"], case_id=demo)
-                return 200, {"checked_at": time.strftime("%H:%M:%S UTC", time.gmtime()), "case_id": demo, "calls": calls,
-                             "status": integration_status()}
+                from .diagnostics import run_live_check
+                result = run_live_check(app)
+                app.svc.audit.append("INTEGRATION_CHECK", u["id"], ok=[c["key"] for c in result["checks"] if c["ok"]])
+                return 200, result
             if method == "GET" and path == "/api/users":
                 return 200, [{"token": t, **{k: v for k, v in u.items() if k != "perms"}, "perms": sorted(u["perms"])}
                              for t, u in USERS.items()]
@@ -166,8 +159,33 @@ def make_handler(app: App):
                 world = r.pop("_world")
                 write_logs(r, world)
                 r["precedents"] = app.svc.memory.recall(r)  # Meterless H-MEM; never alters the proof
+                prov = r["sources_meta"]["provenance"]
+                record_investigation(g[1], {
+                    "run_id": r["run_id"], "world_model": r["world_model"]["entities"] > 0,
+                    "hmem": {"patterns": len(r["precedents"]["patterns"]), "precedents": len(r["precedents"]["precedents"])},
+                    "scout": {"records_scanned": sum(len(b["records"]) for b in app.source.load_case(g[1])["sources"].values()),
+                              "quarantined": len(r["security"]["quarantined"])},
+                    "zetaris": sorted(k for k, v in prov.items() if v.startswith("zetaris")) or False,
+                    "nemotron": any(m["status"] == "ok" for m in r["telemetry"]["model_calls"])})
                 r["actions"] = [a for a in app.svc.actions.values() if a["case_id"] == g[1]]
                 return 200, r
+            if (g := m(r"/api/cases/(CASE-\d{4})/dossier")) and method == "GET":
+                self._check_case_access(self._viewer(), g[1])
+                r = app.investigation(g[1])
+                r.pop("_world", None)
+                r["precedents"] = app.svc.memory.recall(r)
+                acts = [a for a in app.svc.actions.values() if a["case_id"] == g[1]]
+                dossier = {"dossier_version": 1, "generated_at": time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime()),
+                           "disclaimer": "Evidence-backed recommendation for authorized human review. Not a binding financial decision. Synthetic data.",
+                           "case_id": g[1], "decision": {k: r[k] for k in ("proof_status", "verdict", "proposed_action")},
+                           "calculation": r["calculation"], "bundle": r["bundle"], "skeptic": r["skeptic"],
+                           "counterfactuals": r["counterfactuals"], "verification": r["verification"], "security": r["security"],
+                           "precedents": r["precedents"], "trace": r["trace"], "provenance": {k: r[k] for k in
+                           ("run_id", "proof_hash", "source_fingerprint", "world_model_state_hash", "engine_version", "plan_version")},
+                           "sources_meta": r["sources_meta"], "actions": [{k: v for k, v in a.items() if k != "contracts"} for a in acts],
+                           "audit": [e for e in app.svc.audit.entries if e["details"].get("case_id") == g[1]
+                                     or e["details"].get("action_id") in {a["id"] for a in acts}]}
+                return 200, (json.dumps(dossier, indent=2, default=str).encode(), "application/json", f"payproof-dossier-{g[1]}.json")
             if (g := m(r"/api/cases/(CASE-\d{4})/sources")) and method == "GET":
                 self._check_case_access(self._viewer(), g[1])
                 return 200, app.source.load_case(g[1])
@@ -269,6 +287,8 @@ def make_handler(app: App):
 
         def _handle(self, method):
             t0 = time.monotonic()
+            hdr = self.headers.get("X-Request-ID", "")
+            self._rid = hdr if re.fullmatch(r"[A-Za-z0-9._-]{8,64}", hdr) else uuid.uuid4().hex[:16]  # correlation id
             try:
                 status, body = self._route(method)
             except ActionError as e:
@@ -276,14 +296,14 @@ def make_handler(app: App):
             except KeyError:
                 status, body = 404, {"error": "NOT_FOUND"}
             except Exception as e:  # never leak internals
-                log(level="error", error=type(e).__name__, msg=str(e)[:200])
+                log(level="error", request_id=self._rid, error=type(e).__name__, msg=str(e)[:200])
                 status, body = 500, {"error": "INTERNAL"}
             if isinstance(body, tuple):
-                self._send(status, body[0], body[1])
+                self._send(status, body[0], body[1], body[2] if len(body) > 2 else None)
             else:
                 self._send(status, body)
             if self.path.startswith("/api/"):
-                log(method=method, path=urlparse(self.path).path, status=status, ms=round((time.monotonic() - t0) * 1000, 1),
+                log(request_id=self._rid, method=method, path=urlparse(self.path).path, status=status, ms=round((time.monotonic() - t0) * 1000, 1),
                     user=USERS.get(self._token(), {}).get("id"))
 
         def do_GET(self):
