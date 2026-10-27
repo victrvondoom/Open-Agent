@@ -82,7 +82,9 @@ def compute(index, plans: dict, identity: dict, scenario: Scenario | None = None
     opp = next((r for r in v.of_type("opportunity") if r["id"] == dispute["opportunity_id"]), None)
     if opp is None:
         blockers.append({"code": "MISSING_OPPORTUNITY", "detail": "Disputed opportunity not found in CRM", "cites": [dispute["id"]]})
-        return _result(s, steps, conflicts, blockers, None, None)
+        paid, pl_cites = _paid(v, dispute)
+        step("paid", "Commission already paid", "PAYROLL", fmt(paid), pl_cites, formula="sum(posted payroll lines)")
+        return _result(s, steps, conflicts, blockers, None, paid)
 
     # P-7.1 eligibility
     if opp["stage"] != "closed_won":

@@ -214,7 +214,7 @@ def policy_verifier(index, plans, identity, calc, ledger=()):
                and c not in {pv["id"] for pv in plans["versions"]}]
     check("every calculation citation resolves to a real record", not missing, ", ".join(missing))
 
-    paid_step = _step(calc, "paid")
+    paid_step = _step(calc, "paid") or {"cites": [], "value": "0.00"}
     recomputed_paid = sum((D((index.get(c) or ledger_by_id.get(c))["amount"]) for c in paid_step["cites"]
                            if index.exists(c) or c in ledger_by_id), D(0))
     check("paid recomputes from cited payroll lines", recomputed_paid == D(paid_step["value"]),
@@ -468,7 +468,8 @@ def investigate(case: dict, plans: dict, ledger: list | None = None, model: Mode
     # Model narration (bounded, optional, validated)
     facts = {"due": calc["due"], "paid": calc["paid"], "delta": calc["delta"], "status": status, "verdict": verdict,
              "steps": [{k: s[k] for k in ("label", "value", "rule", "cites")} for s in calc["steps"]],
-             "world_model_context": [c for c in wm.context_for(world, wm_ingest["ids"][d["opportunity_id"]])
+             "world_model_context": [c for c in (wm.context_for(world, wm_ingest["ids"][d["opportunity_id"]])
+                                                 if d["opportunity_id"] in wm_ingest["ids"] else [])
                                      if c["id"] not in {q["record_id"] for q in quarantined}] if opt["world_model"] else []}
     narrative, m1 = model.narrate("explain_resolution", facts, hypo["claims"])
     strongest = next((f for f in sk["findings"] if f["id"] == sk["strongest"]), None)

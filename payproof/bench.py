@@ -183,7 +183,7 @@ def _quiet(fn, *a):
         pass
 
 
-def run(case_ids, write=True):
+def run(case_ids, write=True, extended=True):
     plans = load_plans()
     gt = json.loads((ROOT / "bench" / "ground_truth.json").read_text())["cases"]
     src = LocalFixtureSource()
@@ -247,11 +247,18 @@ def run(case_ids, write=True):
             "The baseline is deliberately simple and transparent; it is not a competitor product.",
         ],
     }
+    if extended:
+        from .evaluation import evaluate
+        report["evaluation"] = evaluate(case_ids, gt, base_rows)
     if write:
         out = ROOT / "bench" / "results"
         out.mkdir(parents=True, exist_ok=True)
         (out / "latest.json").write_text(json.dumps(report, indent=2, default=str) + "\n")
-        (ROOT / "docs" / "BENCHMARK.md").write_text(markdown(report))
+        md = markdown(report)
+        if "evaluation" in report:
+            from .evaluation import markdown as ev_markdown
+            md = md.replace("## Limitations", ev_markdown(report["evaluation"], report["sample_size"]) + "\n## Limitations")
+        (ROOT / "docs" / "BENCHMARK.md").write_text(md)
         from .report import write_generated_docs
         write_generated_docs(report)  # deck + README numbers come from this run, never typed by hand
     return report

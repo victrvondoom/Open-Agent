@@ -104,19 +104,19 @@ Full matrix, evidence and remaining steps: [`docs/INTEGRATIONS.md`](docs/INTEGRA
 `python3 -m payproof.bench` runs 25 synthetic, hand-labelled cases. Ground truth is in `bench/ground_truth.json`, and the full report is [`docs/BENCHMARK.md`](docs/BENCHMARK.md).
 
 <!-- BENCH:START -->
-_Generated from `bench/results/latest.json` (2026-10-27T05:20:15Z, 25 cases, model calls: `{"deterministic-fallback": 50}`)._
+_Generated from `bench/results/latest.json` (2026-10-27T08:57:37Z, 30 cases, model calls: `{"deterministic-fallback": 60}`)._
 
 | Metric | PayProof | Rules-only baseline |
 |---|---|---|
-| Decision accuracy (status + verdict + action, + amount when money moves) | 25/25 | 11/25 |
-| Exact due amount / mean abs. error | 20/20 / $0.00 | 11/20 / $835.00 |
-| Wrong payroll adjustments recommended | 0 | 10 |
-| Correct abstention (missing or contradictory evidence) | 5/5 | 0/5 |
+| Decision accuracy (status + verdict + action, + amount when money moves) | 30/30 | 14/30 |
+| Exact due amount / mean abs. error | 24/24 / $0.00 | 14/24 / $716.6666666666666666666666667 |
+| Wrong payroll adjustments recommended | 0 | 12 |
+| Correct abstention (missing or contradictory evidence) | 6/6 | 0/6 |
 | Citation coverage of material claims | 100% | 0% |
-| Unauthorized approvals/executions that succeeded | 0 / 151 attempts | n/a |
-| Duplicate actions from 125 concurrent re-executions | 0 | n/a |
-| Stale evidence between approval and execution: blocked | 8 / 8 | n/a |
-| Forced postcondition failures: receipts issued anyway | 0 / 25 | n/a |
+| Unauthorized approvals/executions that succeeded | 0 / 185 attempts | n/a |
+| Duplicate actions from 150 concurrent re-executions | 0 | n/a |
+| Stale evidence between approval and execution: blocked | 10 / 10 | n/a |
+| Forced postcondition failures: receipts issued anyway | 0 / 30 | n/a |
 | Reproducibility (identical proof hash) | 100% | n/a |
 | Latency per investigation (local) | p50 3.06 ms | n/a |
 <!-- BENCH:END -->

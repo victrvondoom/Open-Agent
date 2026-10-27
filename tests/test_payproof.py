@@ -121,6 +121,27 @@ class DemoCaseTests(unittest.TestCase):
         self.assertFalse(r["verification"]["conflicts"][0]["material"])
 
 
+class RobustnessTests(unittest.TestCase):
+    def test_corrupted_amount_in_any_system_fails_closed(self):
+        """Regression: a corrupted amount on the CRM opportunity used to crash every investigation."""
+        import copy
+        src = LocalFixtureSource(user_dir=None)
+        keys = ("amount", "tcv", "new_tcv", "pct", "rate_override")
+        for cid in GT:
+            for system in ("crm", "clm", "billing", "payroll", "comp"):
+                c = copy.deepcopy(src.load_case(cid))
+                hit = next((r for r in c["sources"][system]["records"] if any(r.get(k) for k in keys)), None)
+                if not hit:
+                    continue
+                k = next(k for k in keys if hit.get(k))
+                hit[k] = "1O,000.0x"
+                with self.subTest(case=cid, system=system):
+                    r = investigate(c, PLANS)
+                    self.assertEqual(r["proof_status"], "NEEDS_EVIDENCE")
+                    self.assertNotEqual(r["proposed_action"]["type"], "PREPARE_PAYROLL_ADJUSTMENT")
+                    self.assertTrue(r["security"]["malformed"])
+
+
 class ActionTests(unittest.TestCase):
     def setUp(self):
         self.svc = ActionService(LocalFixtureSource(), PLANS, audit_path=None)
