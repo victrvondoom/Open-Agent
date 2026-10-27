@@ -1,0 +1,123 @@
+{
+  "case_id": "CASE-1016",
+  "title": "Payments feed unavailable",
+  "tags": [
+    "missing_evidence"
+  ],
+  "dispute": {
+    "id": "DSP-1016",
+    "employee_id": "E-2016",
+    "opportunity_id": "OPP-1016",
+    "claimed_shortfall": "3000.00",
+    "filed_at": "2026-07-08",
+    "period": "2026-Q2",
+    "narrative": "Pinnacle has paid; I'm owed $3,000.",
+    "effective_at": "2026-07-08",
+    "recorded_at": "2026-07-08T10:00:00Z"
+  },
+  "feeds": {
+    "hris": "ok",
+    "crm": "ok",
+    "clm": "ok",
+    "billing": "ok",
+    "billing.payments": "unavailable",
+    "comp": "ok",
+    "payroll": "ok"
+  },
+  "sources": {
+    "hris": {
+      "system": "hris-sim (Workday-like)",
+      "records": [
+        {
+          "id": "E-2016",
+          "type": "employee",
+          "name": "Felix Wagner",
+          "email": "felix.wagner@peoplepay.example",
+          "alt_emails": [],
+          "territory": "WEST",
+          "effective_at": "2025-01-06",
+          "recorded_at": "2025-01-06T10:00:00Z"
+        }
+      ]
+    },
+    "crm": {
+      "system": "crm-sim (Salesforce-like)",
+      "records": [
+        {
+          "id": "U-2016",
+          "type": "crm_user",
+          "name": "Felix Wagner",
+          "email": "felix.wagner@peoplepay.example",
+          "effective_at": "2025-01-06",
+          "recorded_at": "2025-01-06T10:00:00Z"
+        },
+        {
+          "id": "OPP-1016",
+          "type": "opportunity",
+          "account": "Pinnacle Insurance",
+          "amount": "30000.00",
+          "stage": "closed_won",
+          "close_date": "2026-03-20",
+          "owner": "U-2016",
+          "effective_at": "2026-03-20",
+          "recorded_at": "2026-03-20T17:00:00Z"
+        },
+        {
+          "id": "SPL-1016-1",
+          "type": "split",
+          "opportunity_id": "OPP-1016",
+          "crm_user_id": "U-2016",
+          "pct": "100",
+          "effective_at": "2026-03-20",
+          "recorded_at": "2026-03-20T17:05:00Z"
+        }
+      ]
+    },
+    "clm": {
+      "system": "clm-sim (contract lifecycle)",
+      "records": [
+        {
+          "id": "CTR-1016",
+          "type": "contract",
+          "opportunity_id": "OPP-1016",
+          "tcv": "30000.00",
+          "signed_date": "2026-03-20",
+          "effective_at": "2026-03-20",
+          "recorded_at": "2026-03-20T18:00:00Z"
+        }
+      ]
+    },
+    "billing": {
+      "system": "billing-sim (NetSuite-like)",
+      "records": [
+        {
+          "id": "INV-1016",
+          "type": "invoice",
+          "contract_id": "CTR-1016",
+          "opportunity_id": "OPP-1016",
+          "amount": "30000.00",
+          "issued_date": "2026-04-01",
+          "effective_at": "2026-04-01",
+          "recorded_at": "2026-04-01T10:00:00Z"
+        }
+      ]
+    },
+    "comp": {
+      "system": "comp-admin-sim",
+      "records": []
+    },
+    "payroll": {
+      "system": "payroll-sim (ADP-like)",
+      "records": [
+        {
+          "id": "CAL-2026-Q2",
+          "type": "pay_calendar",
+          "period": "2026-Q2",
+          "measurement_cutoff": "2026-06-30",
+          "effective_at": "2026-06-30",
+          "recorded_at": "2026-01-02T10:00:00Z"
+        }
+      ]
+    }
+  }
+}

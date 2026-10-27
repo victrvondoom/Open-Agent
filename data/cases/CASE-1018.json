@@ -1,0 +1,169 @@
+{
+  "case_id": "CASE-1018",
+  "title": "Approved rate exception",
+  "tags": [
+    "exception",
+    "underpayment"
+  ],
+  "dispute": {
+    "id": "DSP-1018",
+    "employee_id": "E-2018",
+    "opportunity_id": "OPP-1018",
+    "claimed_shortfall": "1000.00",
+    "filed_at": "2026-07-08",
+    "period": "2026-Q2",
+    "narrative": "Redwood had an approved 12% strategic-logo rate. I was paid 10%.",
+    "effective_at": "2026-07-08",
+    "recorded_at": "2026-07-08T10:00:00Z"
+  },
+  "feeds": {
+    "hris": "ok",
+    "crm": "ok",
+    "clm": "ok",
+    "billing": "ok",
+    "billing.payments": "ok",
+    "comp": "ok",
+    "payroll": "ok"
+  },
+  "sources": {
+    "hris": {
+      "system": "hris-sim (Workday-like)",
+      "records": [
+        {
+          "id": "E-2018",
+          "type": "employee",
+          "name": "Lucas Moreau",
+          "email": "lucas.moreau@peoplepay.example",
+          "alt_emails": [],
+          "territory": "WEST",
+          "effective_at": "2025-01-06",
+          "recorded_at": "2025-01-06T10:00:00Z"
+        }
+      ]
+    },
+    "crm": {
+      "system": "crm-sim (Salesforce-like)",
+      "records": [
+        {
+          "id": "U-2018",
+          "type": "crm_user",
+          "name": "Lucas Moreau",
+          "email": "lucas.moreau@peoplepay.example",
+          "effective_at": "2025-01-06",
+          "recorded_at": "2025-01-06T10:00:00Z"
+        },
+        {
+          "id": "OPP-1018",
+          "type": "opportunity",
+          "account": "Redwood Pharma",
+          "amount": "50000.00",
+          "stage": "closed_won",
+          "close_date": "2026-03-20",
+          "owner": "U-2018",
+          "effective_at": "2026-03-20",
+          "recorded_at": "2026-03-20T17:00:00Z"
+        },
+        {
+          "id": "SPL-1018-1",
+          "type": "split",
+          "opportunity_id": "OPP-1018",
+          "crm_user_id": "U-2018",
+          "pct": "100",
+          "effective_at": "2026-03-20",
+          "recorded_at": "2026-03-20T17:05:00Z"
+        }
+      ]
+    },
+    "clm": {
+      "system": "clm-sim (contract lifecycle)",
+      "records": [
+        {
+          "id": "CTR-1018",
+          "type": "contract",
+          "opportunity_id": "OPP-1018",
+          "tcv": "50000.00",
+          "signed_date": "2026-03-20",
+          "effective_at": "2026-03-20",
+          "recorded_at": "2026-03-20T18:00:00Z"
+        }
+      ]
+    },
+    "billing": {
+      "system": "billing-sim (NetSuite-like)",
+      "records": [
+        {
+          "id": "INV-1018",
+          "type": "invoice",
+          "contract_id": "CTR-1018",
+          "opportunity_id": "OPP-1018",
+          "amount": "50000.00",
+          "issued_date": "2026-04-01",
+          "effective_at": "2026-04-01",
+          "recorded_at": "2026-04-01T10:00:00Z"
+        },
+        {
+          "id": "PAY-1018-1",
+          "type": "payment",
+          "invoice_id": "INV-1018",
+          "amount": "50000.00",
+          "value_date": "2026-04-28",
+          "effective_at": "2026-04-28",
+          "recorded_at": "2026-04-28T12:00:00Z"
+        }
+      ]
+    },
+    "comp": {
+      "system": "comp-admin-sim",
+      "records": [
+        {
+          "id": "EXC-1018",
+          "type": "policy_exception",
+          "opportunity_id": "OPP-1018",
+          "employee_id": "E-2018",
+          "rate_override": "0.12",
+          "status": "APPROVED",
+          "approval_ref": "APR-7781",
+          "approved_by": "VP-SALES-1",
+          "justification": "strategic logo",
+          "effective_at": "2026-03-20",
+          "recorded_at": "2026-03-20T10:00:00Z"
+        }
+      ]
+    },
+    "payroll": {
+      "system": "payroll-sim (ADP-like)",
+      "records": [
+        {
+          "id": "CAL-2026-Q2",
+          "type": "pay_calendar",
+          "period": "2026-Q2",
+          "measurement_cutoff": "2026-06-30",
+          "effective_at": "2026-06-30",
+          "recorded_at": "2026-01-02T10:00:00Z"
+        },
+        {
+          "id": "PB-2026-05",
+          "type": "payroll_batch",
+          "status": "POSTED",
+          "posted_date": "2026-05-31",
+          "approved_by": "PAYROLL-OPS-2",
+          "effective_at": "2026-05-31",
+          "recorded_at": "2026-05-31T20:00:00Z"
+        },
+        {
+          "id": "PL-1018-1",
+          "type": "payroll_line",
+          "batch_id": "PB-2026-05",
+          "employee_id": "E-2018",
+          "opportunity_id": "OPP-1018",
+          "line_type": "commission",
+          "amount": "5000.00",
+          "reference_id": "OPP-1018",
+          "memo": "",
+          "effective_at": "2026-05-31",
+          "recorded_at": "2026-05-31T20:00:00Z"
+        }
+      ]
+    }
+  }
+}

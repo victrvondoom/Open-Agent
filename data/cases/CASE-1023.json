@@ -1,0 +1,102 @@
+{
+  "case_id": "CASE-1023",
+  "title": "Opportunity not closed-won",
+  "tags": [
+    "ineligible"
+  ],
+  "dispute": {
+    "id": "DSP-1023",
+    "employee_id": "E-2023",
+    "opportunity_id": "OPP-1023",
+    "claimed_shortfall": "4000.00",
+    "filed_at": "2026-07-08",
+    "period": "2026-Q2",
+    "narrative": "Willow is basically done; please pay my $4,000.",
+    "effective_at": "2026-07-08",
+    "recorded_at": "2026-07-08T10:00:00Z"
+  },
+  "feeds": {
+    "hris": "ok",
+    "crm": "ok",
+    "clm": "ok",
+    "billing": "ok",
+    "billing.payments": "ok",
+    "comp": "ok",
+    "payroll": "ok"
+  },
+  "sources": {
+    "hris": {
+      "system": "hris-sim (Workday-like)",
+      "records": [
+        {
+          "id": "E-2023",
+          "type": "employee",
+          "name": "Nora Svensson",
+          "email": "nora.svensson@peoplepay.example",
+          "alt_emails": [],
+          "territory": "WEST",
+          "effective_at": "2025-01-06",
+          "recorded_at": "2025-01-06T10:00:00Z"
+        }
+      ]
+    },
+    "crm": {
+      "system": "crm-sim (Salesforce-like)",
+      "records": [
+        {
+          "id": "U-2023",
+          "type": "crm_user",
+          "name": "Nora Svensson",
+          "email": "nora.svensson@peoplepay.example",
+          "effective_at": "2025-01-06",
+          "recorded_at": "2025-01-06T10:00:00Z"
+        },
+        {
+          "id": "OPP-1023",
+          "type": "opportunity",
+          "account": "Willow Schools",
+          "amount": "40000.00",
+          "stage": "negotiation",
+          "close_date": "2026-03-20",
+          "owner": "U-2023",
+          "effective_at": "2026-03-20",
+          "recorded_at": "2026-03-20T17:00:00Z"
+        },
+        {
+          "id": "SPL-1023-1",
+          "type": "split",
+          "opportunity_id": "OPP-1023",
+          "crm_user_id": "U-2023",
+          "pct": "100",
+          "effective_at": "2026-03-20",
+          "recorded_at": "2026-03-20T17:05:00Z"
+        }
+      ]
+    },
+    "clm": {
+      "system": "clm-sim (contract lifecycle)",
+      "records": []
+    },
+    "billing": {
+      "system": "billing-sim (NetSuite-like)",
+      "records": []
+    },
+    "comp": {
+      "system": "comp-admin-sim",
+      "records": []
+    },
+    "payroll": {
+      "system": "payroll-sim (ADP-like)",
+      "records": [
+        {
+          "id": "CAL-2026-Q2",
+          "type": "pay_calendar",
+          "period": "2026-Q2",
+          "measurement_cutoff": "2026-06-30",
+          "effective_at": "2026-06-30",
+          "recorded_at": "2026-01-02T10:00:00Z"
+        }
+      ]
+    }
+  }
+}

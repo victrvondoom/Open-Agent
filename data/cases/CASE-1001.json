@@ -1,0 +1,232 @@
+{
+  "case_id": "CASE-1001",
+  "title": "Northwind Logistics \u2014 $3,000 shortfall claim",
+  "tags": [
+    "demo",
+    "amendment",
+    "partial_payment",
+    "credit_note",
+    "late_arriving",
+    "duplicate_adjustment",
+    "identity_alias"
+  ],
+  "dispute": {
+    "id": "DSP-1001",
+    "employee_id": "E-1042",
+    "opportunity_id": "OPP-5521",
+    "claimed_shortfall": "3000.00",
+    "filed_at": "2026-07-08",
+    "period": "2026-Q2",
+    "narrative": "I closed Northwind at $60,000 in March. At 10% I should have earned $6,000 but I've only received around $3,000. Please fix the $3,000 shortfall.",
+    "effective_at": "2026-07-08",
+    "recorded_at": "2026-07-08T10:00:00Z"
+  },
+  "feeds": {
+    "hris": "ok",
+    "crm": "ok",
+    "clm": "ok",
+    "billing": "ok",
+    "billing.payments": "ok",
+    "comp": "ok",
+    "payroll": "ok"
+  },
+  "sources": {
+    "hris": {
+      "system": "hris-sim (Workday-like)",
+      "records": [
+        {
+          "id": "E-1042",
+          "type": "employee",
+          "name": "Maya Chen",
+          "email": "maya.chen@peoplepay.example",
+          "alt_emails": [],
+          "territory": "WEST",
+          "effective_at": "2025-01-06",
+          "recorded_at": "2025-01-06T10:00:00Z"
+        }
+      ]
+    },
+    "crm": {
+      "system": "crm-sim (Salesforce-like)",
+      "records": [
+        {
+          "id": "U-77",
+          "type": "crm_user",
+          "name": "M. Chen",
+          "email": "maya.chen@peoplepay.example",
+          "effective_at": "2025-01-06",
+          "recorded_at": "2025-01-06T10:00:00Z"
+        },
+        {
+          "id": "U-91",
+          "type": "crm_user",
+          "name": "Daniel Ortiz",
+          "email": "daniel.ortiz@peoplepay.example",
+          "effective_at": "2025-01-06",
+          "recorded_at": "2025-01-06T10:00:00Z"
+        },
+        {
+          "id": "OPP-5521",
+          "type": "opportunity",
+          "account": "Northwind Logistics",
+          "amount": "60000.00",
+          "stage": "closed_won",
+          "close_date": "2026-03-14",
+          "owner": "U-77",
+          "effective_at": "2026-03-14",
+          "recorded_at": "2026-03-14T17:00:00Z"
+        },
+        {
+          "id": "SPL-5521-1",
+          "type": "split",
+          "opportunity_id": "OPP-5521",
+          "crm_user_id": "U-77",
+          "pct": "100",
+          "effective_at": "2026-03-14",
+          "recorded_at": "2026-03-14T17:05:00Z"
+        }
+      ]
+    },
+    "clm": {
+      "system": "clm-sim (contract lifecycle)",
+      "records": [
+        {
+          "id": "CTR-3301",
+          "type": "contract",
+          "opportunity_id": "OPP-5521",
+          "tcv": "60000.00",
+          "signed_date": "2026-03-14",
+          "effective_at": "2026-03-14",
+          "recorded_at": "2026-03-14T18:00:00Z"
+        },
+        {
+          "id": "AMD-3301-1",
+          "type": "amendment",
+          "contract_id": "CTR-3301",
+          "new_tcv": "50000.00",
+          "effective_date": "2026-04-01",
+          "signed_date": "2026-03-28",
+          "effective_at": "2026-04-01",
+          "recorded_at": "2026-03-28T18:00:00Z"
+        }
+      ]
+    },
+    "billing": {
+      "system": "billing-sim (NetSuite-like)",
+      "records": [
+        {
+          "id": "INV-8801",
+          "type": "invoice",
+          "contract_id": "CTR-3301",
+          "opportunity_id": "OPP-5521",
+          "amount": "50000.00",
+          "issued_date": "2026-04-02",
+          "effective_at": "2026-04-02",
+          "recorded_at": "2026-04-02T10:00:00Z"
+        },
+        {
+          "id": "PAY-44120",
+          "type": "payment",
+          "invoice_id": "INV-8801",
+          "amount": "36000.00",
+          "value_date": "2026-04-20",
+          "effective_at": "2026-04-20",
+          "recorded_at": "2026-04-21T12:00:00Z"
+        },
+        {
+          "id": "PAY-44987",
+          "type": "payment",
+          "invoice_id": "INV-8801",
+          "amount": "9000.00",
+          "value_date": "2026-06-10",
+          "effective_at": "2026-06-10",
+          "recorded_at": "2026-07-03T12:00:00Z"
+        },
+        {
+          "id": "CN-0077",
+          "type": "credit_note",
+          "invoice_id": "INV-8801",
+          "amount": "2000.00",
+          "issued_date": "2026-05-15",
+          "reason": "SLA credit",
+          "effective_at": "2026-05-15",
+          "recorded_at": "2026-05-15T13:00:00Z"
+        }
+      ]
+    },
+    "comp": {
+      "system": "comp-admin-sim",
+      "records": []
+    },
+    "payroll": {
+      "system": "payroll-sim (ADP-like)",
+      "records": [
+        {
+          "id": "CAL-2026-Q2",
+          "type": "pay_calendar",
+          "period": "2026-Q2",
+          "measurement_cutoff": "2026-06-30",
+          "effective_at": "2026-06-30",
+          "recorded_at": "2026-01-02T10:00:00Z"
+        },
+        {
+          "id": "PB-2026-05",
+          "type": "payroll_batch",
+          "status": "POSTED",
+          "posted_date": "2026-05-31",
+          "approved_by": "PAYROLL-OPS-2",
+          "effective_at": "2026-05-31",
+          "recorded_at": "2026-05-31T20:00:00Z"
+        },
+        {
+          "id": "PB-2026-06",
+          "type": "payroll_batch",
+          "status": "POSTED",
+          "posted_date": "2026-06-30",
+          "approved_by": "PAYROLL-OPS-2",
+          "effective_at": "2026-06-30",
+          "recorded_at": "2026-06-30T20:00:00Z"
+        },
+        {
+          "id": "PL-20260531-118",
+          "type": "payroll_line",
+          "batch_id": "PB-2026-05",
+          "employee_id": "E-1042",
+          "opportunity_id": "OPP-5521",
+          "line_type": "commission",
+          "amount": "3600.00",
+          "reference_id": "OPP-5521",
+          "memo": "Q2 commission on collected cash",
+          "effective_at": "2026-05-31",
+          "recorded_at": "2026-05-31T20:00:00Z"
+        },
+        {
+          "id": "PL-20260630-041",
+          "type": "payroll_line",
+          "batch_id": "PB-2026-06",
+          "employee_id": "E-1042",
+          "opportunity_id": "OPP-5521",
+          "line_type": "clawback",
+          "amount": "-200.00",
+          "reference_id": "CN-0077",
+          "memo": "Clawback CN-0077",
+          "effective_at": "2026-06-30",
+          "recorded_at": "2026-06-30T20:00:00Z"
+        },
+        {
+          "id": "PL-20260630-042",
+          "type": "payroll_line",
+          "batch_id": "PB-2026-06",
+          "employee_id": "E-1042",
+          "opportunity_id": "OPP-5521",
+          "line_type": "clawback",
+          "amount": "-200.00",
+          "reference_id": "CN-0077",
+          "memo": "Clawback CN-0077 (re-import)",
+          "effective_at": "2026-06-30",
+          "recorded_at": "2026-06-30T20:00:00Z"
+        }
+      ]
+    }
+  }
+}

@@ -1,0 +1,24 @@
+{
+  "system": "comp-admin-sim",
+  "note": "Synthetic commission plan. Clause ids are cited by evidence bundles.",
+  "plan_id": "PLAN-AE-2026",
+  "name": "Account Executive Commission Plan 2026",
+  "clauses": {
+    "P-2.1": "Commission credit follows the CRM split assignments on the closed-won opportunity. Splits on an opportunity must total exactly 100%.",
+    "P-3.1": "Eligible value is the signed contract value, adjusted by amendments signed on or before the measurement cutoff. The amendment with the latest effective date governs.",
+    "P-3.2": "The commissionable base is net cash collected (payments with a value date on or before the cutoff, less refunds and less credit notes issued on or before the cutoff), capped at the eligible value and floored at zero.",
+    "P-4.1": "The commission rate is the rate of the plan version in effect on the opportunity close date.",
+    "P-4.2": "Timing is determined by the value date or issue date of a financial event, not by the date it was recorded in a system.",
+    "P-5.1": "A rate exception applies only when it has status APPROVED and carries an approval reference.",
+    "P-6.1": "Commission due = commissionable base x split percentage x rate, rounded half-up to the cent once, at the end.",
+    "P-7.1": "Only opportunities in stage closed_won are commissionable."
+  },
+  "versions": [
+    {"id": "PLAN-AE-2026-v1", "version": 1, "effective_from": "2026-01-01", "effective_to": "2026-06-30", "rate": "0.10", "recorded_at": "2025-12-15T09:00:00Z"},
+    {"id": "PLAN-AE-2026-v2", "version": 2, "effective_from": "2026-07-01", "effective_to": "2026-12-31", "rate": "0.08", "recorded_at": "2026-06-20T09:00:00Z"}
+  ],
+  "approval_limits": {
+    "finance_approver": "5000.00",
+    "controller": "50000.00"
+  }
+}

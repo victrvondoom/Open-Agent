@@ -1,0 +1,164 @@
+{
+  "case_id": "CASE-1006",
+  "title": "Credit note before cutoff",
+  "tags": [
+    "credit_note"
+  ],
+  "dispute": {
+    "id": "DSP-1006",
+    "employee_id": "E-2006",
+    "opportunity_id": "OPP-1006",
+    "claimed_shortfall": "500.00",
+    "filed_at": "2026-07-08",
+    "period": "2026-Q2",
+    "narrative": "My Fjord commission was reduced by $500 without explanation.",
+    "effective_at": "2026-07-08",
+    "recorded_at": "2026-07-08T10:00:00Z"
+  },
+  "feeds": {
+    "hris": "ok",
+    "crm": "ok",
+    "clm": "ok",
+    "billing": "ok",
+    "billing.payments": "ok",
+    "comp": "ok",
+    "payroll": "ok"
+  },
+  "sources": {
+    "hris": {
+      "system": "hris-sim (Workday-like)",
+      "records": [
+        {
+          "id": "E-2006",
+          "type": "employee",
+          "name": "Noah Fischer",
+          "email": "noah.fischer@peoplepay.example",
+          "alt_emails": [],
+          "territory": "WEST",
+          "effective_at": "2025-01-06",
+          "recorded_at": "2025-01-06T10:00:00Z"
+        }
+      ]
+    },
+    "crm": {
+      "system": "crm-sim (Salesforce-like)",
+      "records": [
+        {
+          "id": "U-2006",
+          "type": "crm_user",
+          "name": "Noah Fischer",
+          "email": "noah.fischer@peoplepay.example",
+          "effective_at": "2025-01-06",
+          "recorded_at": "2025-01-06T10:00:00Z"
+        },
+        {
+          "id": "OPP-1006",
+          "type": "opportunity",
+          "account": "Fjord Analytics",
+          "amount": "40000.00",
+          "stage": "closed_won",
+          "close_date": "2026-03-20",
+          "owner": "U-2006",
+          "effective_at": "2026-03-20",
+          "recorded_at": "2026-03-20T17:00:00Z"
+        },
+        {
+          "id": "SPL-1006-1",
+          "type": "split",
+          "opportunity_id": "OPP-1006",
+          "crm_user_id": "U-2006",
+          "pct": "100",
+          "effective_at": "2026-03-20",
+          "recorded_at": "2026-03-20T17:05:00Z"
+        }
+      ]
+    },
+    "clm": {
+      "system": "clm-sim (contract lifecycle)",
+      "records": [
+        {
+          "id": "CTR-1006",
+          "type": "contract",
+          "opportunity_id": "OPP-1006",
+          "tcv": "40000.00",
+          "signed_date": "2026-03-20",
+          "effective_at": "2026-03-20",
+          "recorded_at": "2026-03-20T18:00:00Z"
+        }
+      ]
+    },
+    "billing": {
+      "system": "billing-sim (NetSuite-like)",
+      "records": [
+        {
+          "id": "INV-1006",
+          "type": "invoice",
+          "contract_id": "CTR-1006",
+          "opportunity_id": "OPP-1006",
+          "amount": "40000.00",
+          "issued_date": "2026-04-01",
+          "effective_at": "2026-04-01",
+          "recorded_at": "2026-04-01T10:00:00Z"
+        },
+        {
+          "id": "PAY-1006-1",
+          "type": "payment",
+          "invoice_id": "INV-1006",
+          "amount": "40000.00",
+          "value_date": "2026-04-28",
+          "effective_at": "2026-04-28",
+          "recorded_at": "2026-04-28T12:00:00Z"
+        },
+        {
+          "id": "CN-1006",
+          "type": "credit_note",
+          "invoice_id": "INV-1006",
+          "amount": "5000.00",
+          "issued_date": "2026-05-01",
+          "reason": "service credit",
+          "effective_at": "2026-05-01",
+          "recorded_at": "2026-05-01T13:00:00Z"
+        }
+      ]
+    },
+    "comp": {
+      "system": "comp-admin-sim",
+      "records": []
+    },
+    "payroll": {
+      "system": "payroll-sim (ADP-like)",
+      "records": [
+        {
+          "id": "CAL-2026-Q2",
+          "type": "pay_calendar",
+          "period": "2026-Q2",
+          "measurement_cutoff": "2026-06-30",
+          "effective_at": "2026-06-30",
+          "recorded_at": "2026-01-02T10:00:00Z"
+        },
+        {
+          "id": "PB-2026-05",
+          "type": "payroll_batch",
+          "status": "POSTED",
+          "posted_date": "2026-05-31",
+          "approved_by": "PAYROLL-OPS-2",
+          "effective_at": "2026-05-31",
+          "recorded_at": "2026-05-31T20:00:00Z"
+        },
+        {
+          "id": "PL-1006-1",
+          "type": "payroll_line",
+          "batch_id": "PB-2026-05",
+          "employee_id": "E-2006",
+          "opportunity_id": "OPP-1006",
+          "line_type": "commission",
+          "amount": "3500.00",
+          "reference_id": "OPP-1006",
+          "memo": "",
+          "effective_at": "2026-05-31",
+          "recorded_at": "2026-05-31T20:00:00Z"
+        }
+      ]
+    }
+  }
+}

@@ -1,0 +1,172 @@
+{
+  "case_id": "CASE-1009",
+  "title": "Split assignments exceed 100%",
+  "tags": [
+    "split",
+    "contradiction"
+  ],
+  "dispute": {
+    "id": "DSP-1009",
+    "employee_id": "E-2009",
+    "opportunity_id": "OPP-1009",
+    "claimed_shortfall": "1000.00",
+    "filed_at": "2026-07-08",
+    "period": "2026-Q2",
+    "narrative": "My split is 60% but payroll paid 50%.",
+    "effective_at": "2026-07-08",
+    "recorded_at": "2026-07-08T10:00:00Z"
+  },
+  "feeds": {
+    "hris": "ok",
+    "crm": "ok",
+    "clm": "ok",
+    "billing": "ok",
+    "billing.payments": "ok",
+    "comp": "ok",
+    "payroll": "ok"
+  },
+  "sources": {
+    "hris": {
+      "system": "hris-sim (Workday-like)",
+      "records": [
+        {
+          "id": "E-2009",
+          "type": "employee",
+          "name": "Sofia Lind",
+          "email": "sofia.lind@peoplepay.example",
+          "alt_emails": [],
+          "territory": "WEST",
+          "effective_at": "2025-01-06",
+          "recorded_at": "2025-01-06T10:00:00Z"
+        }
+      ]
+    },
+    "crm": {
+      "system": "crm-sim (Salesforce-like)",
+      "records": [
+        {
+          "id": "U-2009",
+          "type": "crm_user",
+          "name": "Sofia Lind",
+          "email": "sofia.lind@peoplepay.example",
+          "effective_at": "2025-01-06",
+          "recorded_at": "2025-01-06T10:00:00Z"
+        },
+        {
+          "id": "U-3009",
+          "type": "crm_user",
+          "name": "Ben Okafor",
+          "email": "ben.okafor@peoplepay.example",
+          "effective_at": "2025-01-06",
+          "recorded_at": "2025-01-06T10:00:00Z"
+        },
+        {
+          "id": "OPP-1009",
+          "type": "opportunity",
+          "account": "Ironwood Bank",
+          "amount": "80000.00",
+          "stage": "closed_won",
+          "close_date": "2026-03-20",
+          "owner": "U-2009",
+          "effective_at": "2026-03-20",
+          "recorded_at": "2026-03-20T17:00:00Z"
+        },
+        {
+          "id": "SPL-1009-1",
+          "type": "split",
+          "opportunity_id": "OPP-1009",
+          "crm_user_id": "U-2009",
+          "pct": "60",
+          "effective_at": "2026-03-20",
+          "recorded_at": "2026-03-20T17:05:00Z"
+        },
+        {
+          "id": "SPL-1009-2",
+          "type": "split",
+          "opportunity_id": "OPP-1009",
+          "crm_user_id": "U-3009",
+          "pct": "50",
+          "effective_at": "2026-03-20",
+          "recorded_at": "2026-03-20T17:05:00Z"
+        }
+      ]
+    },
+    "clm": {
+      "system": "clm-sim (contract lifecycle)",
+      "records": [
+        {
+          "id": "CTR-1009",
+          "type": "contract",
+          "opportunity_id": "OPP-1009",
+          "tcv": "80000.00",
+          "signed_date": "2026-03-20",
+          "effective_at": "2026-03-20",
+          "recorded_at": "2026-03-20T18:00:00Z"
+        }
+      ]
+    },
+    "billing": {
+      "system": "billing-sim (NetSuite-like)",
+      "records": [
+        {
+          "id": "INV-1009",
+          "type": "invoice",
+          "contract_id": "CTR-1009",
+          "opportunity_id": "OPP-1009",
+          "amount": "80000.00",
+          "issued_date": "2026-04-01",
+          "effective_at": "2026-04-01",
+          "recorded_at": "2026-04-01T10:00:00Z"
+        },
+        {
+          "id": "PAY-1009-1",
+          "type": "payment",
+          "invoice_id": "INV-1009",
+          "amount": "80000.00",
+          "value_date": "2026-04-28",
+          "effective_at": "2026-04-28",
+          "recorded_at": "2026-04-28T12:00:00Z"
+        }
+      ]
+    },
+    "comp": {
+      "system": "comp-admin-sim",
+      "records": []
+    },
+    "payroll": {
+      "system": "payroll-sim (ADP-like)",
+      "records": [
+        {
+          "id": "CAL-2026-Q2",
+          "type": "pay_calendar",
+          "period": "2026-Q2",
+          "measurement_cutoff": "2026-06-30",
+          "effective_at": "2026-06-30",
+          "recorded_at": "2026-01-02T10:00:00Z"
+        },
+        {
+          "id": "PB-2026-05",
+          "type": "payroll_batch",
+          "status": "POSTED",
+          "posted_date": "2026-05-31",
+          "approved_by": "PAYROLL-OPS-2",
+          "effective_at": "2026-05-31",
+          "recorded_at": "2026-05-31T20:00:00Z"
+        },
+        {
+          "id": "PL-1009-1",
+          "type": "payroll_line",
+          "batch_id": "PB-2026-05",
+          "employee_id": "E-2009",
+          "opportunity_id": "OPP-1009",
+          "line_type": "commission",
+          "amount": "4000.00",
+          "reference_id": "OPP-1009",
+          "memo": "",
+          "effective_at": "2026-05-31",
+          "recorded_at": "2026-05-31T20:00:00Z"
+        }
+      ]
+    }
+  }
+}

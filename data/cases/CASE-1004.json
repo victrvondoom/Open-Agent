@@ -1,0 +1,154 @@
+{
+  "case_id": "CASE-1004",
+  "title": "Overpayment discovered",
+  "tags": [
+    "overpayment"
+  ],
+  "dispute": {
+    "id": "DSP-1004",
+    "employee_id": "E-2004",
+    "opportunity_id": "OPP-1004",
+    "claimed_shortfall": "300.00",
+    "filed_at": "2026-07-08",
+    "period": "2026-Q2",
+    "narrative": "I believe I am owed another $300 on Delta Ceramics.",
+    "effective_at": "2026-07-08",
+    "recorded_at": "2026-07-08T10:00:00Z"
+  },
+  "feeds": {
+    "hris": "ok",
+    "crm": "ok",
+    "clm": "ok",
+    "billing": "ok",
+    "billing.payments": "ok",
+    "comp": "ok",
+    "payroll": "ok"
+  },
+  "sources": {
+    "hris": {
+      "system": "hris-sim (Workday-like)",
+      "records": [
+        {
+          "id": "E-2004",
+          "type": "employee",
+          "name": "Tom\u00e1s Rivera",
+          "email": "tom\u00e1s.rivera@peoplepay.example",
+          "alt_emails": [],
+          "territory": "WEST",
+          "effective_at": "2025-01-06",
+          "recorded_at": "2025-01-06T10:00:00Z"
+        }
+      ]
+    },
+    "crm": {
+      "system": "crm-sim (Salesforce-like)",
+      "records": [
+        {
+          "id": "U-2004",
+          "type": "crm_user",
+          "name": "Tom\u00e1s Rivera",
+          "email": "tom\u00e1s.rivera@peoplepay.example",
+          "effective_at": "2025-01-06",
+          "recorded_at": "2025-01-06T10:00:00Z"
+        },
+        {
+          "id": "OPP-1004",
+          "type": "opportunity",
+          "account": "Delta Ceramics",
+          "amount": "20000.00",
+          "stage": "closed_won",
+          "close_date": "2026-03-20",
+          "owner": "U-2004",
+          "effective_at": "2026-03-20",
+          "recorded_at": "2026-03-20T17:00:00Z"
+        },
+        {
+          "id": "SPL-1004-1",
+          "type": "split",
+          "opportunity_id": "OPP-1004",
+          "crm_user_id": "U-2004",
+          "pct": "100",
+          "effective_at": "2026-03-20",
+          "recorded_at": "2026-03-20T17:05:00Z"
+        }
+      ]
+    },
+    "clm": {
+      "system": "clm-sim (contract lifecycle)",
+      "records": [
+        {
+          "id": "CTR-1004",
+          "type": "contract",
+          "opportunity_id": "OPP-1004",
+          "tcv": "20000.00",
+          "signed_date": "2026-03-20",
+          "effective_at": "2026-03-20",
+          "recorded_at": "2026-03-20T18:00:00Z"
+        }
+      ]
+    },
+    "billing": {
+      "system": "billing-sim (NetSuite-like)",
+      "records": [
+        {
+          "id": "INV-1004",
+          "type": "invoice",
+          "contract_id": "CTR-1004",
+          "opportunity_id": "OPP-1004",
+          "amount": "20000.00",
+          "issued_date": "2026-04-01",
+          "effective_at": "2026-04-01",
+          "recorded_at": "2026-04-01T10:00:00Z"
+        },
+        {
+          "id": "PAY-1004-1",
+          "type": "payment",
+          "invoice_id": "INV-1004",
+          "amount": "20000.00",
+          "value_date": "2026-04-28",
+          "effective_at": "2026-04-28",
+          "recorded_at": "2026-04-28T12:00:00Z"
+        }
+      ]
+    },
+    "comp": {
+      "system": "comp-admin-sim",
+      "records": []
+    },
+    "payroll": {
+      "system": "payroll-sim (ADP-like)",
+      "records": [
+        {
+          "id": "CAL-2026-Q2",
+          "type": "pay_calendar",
+          "period": "2026-Q2",
+          "measurement_cutoff": "2026-06-30",
+          "effective_at": "2026-06-30",
+          "recorded_at": "2026-01-02T10:00:00Z"
+        },
+        {
+          "id": "PB-2026-05",
+          "type": "payroll_batch",
+          "status": "POSTED",
+          "posted_date": "2026-05-31",
+          "approved_by": "PAYROLL-OPS-2",
+          "effective_at": "2026-05-31",
+          "recorded_at": "2026-05-31T20:00:00Z"
+        },
+        {
+          "id": "PL-1004-1",
+          "type": "payroll_line",
+          "batch_id": "PB-2026-05",
+          "employee_id": "E-2004",
+          "opportunity_id": "OPP-1004",
+          "line_type": "commission",
+          "amount": "2500.00",
+          "reference_id": "OPP-1004",
+          "memo": "",
+          "effective_at": "2026-05-31",
+          "recorded_at": "2026-05-31T20:00:00Z"
+        }
+      ]
+    }
+  }
+}

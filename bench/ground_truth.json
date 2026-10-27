@@ -1,0 +1,31 @@
+{
+  "_note": "Hand-computed expected outcomes. Written independently of the engine; never generated from engine output. Rates: plan v1 10% (close <= 2026-06-30), v2 8%. Base = min(eligible contract value, net collected by cutoff).",
+  "cases": {
+    "CASE-1001": {"proof_status": "VERIFIED", "verdict": "PARTIALLY_SUPPORTED", "due": "4300.00", "paid": "3200.00", "delta": "1100.00", "action": "PREPARE_PAYROLL_ADJUSTMENT", "permission": "finance_approver",
+                  "must_cite": ["AMD-3301-1", "PAY-44987", "CN-0077", "PL-20260630-042"], "hand_calc": "min(50000, 36000+9000-2000)=43000 x 100% x 10% = 4300; paid 3600-200-200 = 3200"},
+    "CASE-1002": {"proof_status": "VERIFIED", "verdict": "REJECTED", "due": "4000.00", "paid": "4000.00", "delta": "0.00", "action": "RECONCILIATION_REPORT", "hand_calc": "40000 x 10% = 4000"},
+    "CASE-1003": {"proof_status": "VERIFIED", "verdict": "SUPPORTED", "due": "3000.00", "paid": "2000.00", "delta": "1000.00", "action": "PREPARE_PAYROLL_ADJUSTMENT", "permission": "finance_approver", "hand_calc": "30000 x 10%"},
+    "CASE-1004": {"proof_status": "VERIFIED", "verdict": "REJECTED", "due": "2000.00", "paid": "2500.00", "delta": "-500.00", "action": "FLAG_PAYOUT_REVIEW", "hand_calc": "20000 x 10% = 2000 < 2500 paid"},
+    "CASE-1005": {"proof_status": "VERIFIED", "verdict": "REJECTED", "due": "2500.00", "paid": "2500.00", "delta": "0.00", "action": "RECONCILIATION_REPORT", "hand_calc": "min(50000, 25000) x 10%"},
+    "CASE-1006": {"proof_status": "VERIFIED", "verdict": "REJECTED", "due": "3500.00", "paid": "3500.00", "delta": "0.00", "action": "RECONCILIATION_REPORT", "must_cite": ["CN-1006"], "hand_calc": "(40000-5000) x 10%"},
+    "CASE-1007": {"proof_status": "VERIFIED", "verdict": "SUPPORTED", "due": "4000.00", "paid": "3500.00", "delta": "500.00", "action": "PREPARE_PAYROLL_ADJUSTMENT", "permission": "finance_approver", "hand_calc": "CN issued 2026-07-15 after cutoff -> excluded; 40000 x 10%"},
+    "CASE-1008": {"proof_status": "VERIFIED", "verdict": "SUPPORTED", "due": "4800.00", "paid": "4000.00", "delta": "800.00", "action": "PREPARE_PAYROLL_ADJUSTMENT", "permission": "finance_approver", "must_cite": ["SPL-1008-1"], "hand_calc": "80000 x 60% x 10%"},
+    "CASE-1009": {"proof_status": "DISPUTED", "verdict": "UNDETERMINED", "due": null, "paid": "4000.00", "delta": null, "action": "OPEN_DISPUTE", "hand_calc": "splits total 110% -> contradiction"},
+    "CASE-1010": {"proof_status": "DISPUTED", "verdict": "UNDETERMINED", "due": null, "paid": "4500.00", "delta": null, "action": "OPEN_DISPUTE", "hand_calc": "same-date amendments 45000 vs 55000 -> due 4500 vs 5000, material"},
+    "CASE-1011": {"proof_status": "VERIFIED", "verdict": "SUPPORTED", "due": "5000.00", "paid": "4000.00", "delta": "1000.00", "action": "PREPARE_PAYROLL_ADJUSTMENT", "permission": "finance_approver", "hand_calc": "amendment conflict 70000 vs 75000 immaterial: both exceed 50000 collected"},
+    "CASE-1012": {"proof_status": "VERIFIED", "verdict": "REJECTED", "due": "6000.00", "paid": "6000.00", "delta": "0.00", "action": "RECONCILIATION_REPORT", "must_cite": ["AMD-1012-1"], "hand_calc": "amendment signed after cutoff ignored; min(60000,60000) x 10%"},
+    "CASE-1013": {"proof_status": "NEEDS_EVIDENCE", "verdict": "UNDETERMINED", "due": null, "paid": "0.00", "delta": null, "action": "REQUEST_EVIDENCE", "hand_calc": "two CRM users named Priya Nair, neither email matches HRIS"},
+    "CASE-1014": {"proof_status": "VERIFIED", "verdict": "SUPPORTED", "due": "3000.00", "paid": "0.00", "delta": "3000.00", "action": "PREPARE_PAYROLL_ADJUSTMENT", "permission": "finance_approver", "hand_calc": "CRM email matches HRIS alt email; 30000 x 10%"},
+    "CASE-1015": {"proof_status": "NEEDS_EVIDENCE", "verdict": "UNDETERMINED", "due": null, "paid": "0.00", "delta": null, "action": "REQUEST_EVIDENCE", "hand_calc": "no contract on file"},
+    "CASE-1016": {"proof_status": "NEEDS_EVIDENCE", "verdict": "UNDETERMINED", "due": null, "paid": "0.00", "delta": null, "action": "REQUEST_EVIDENCE", "hand_calc": "payments feed unavailable"},
+    "CASE-1017": {"proof_status": "VERIFIED", "verdict": "REJECTED", "due": "0.00", "paid": "0.00", "delta": "0.00", "action": "RECONCILIATION_REPORT", "hand_calc": "nothing collected"},
+    "CASE-1018": {"proof_status": "VERIFIED", "verdict": "SUPPORTED", "due": "6000.00", "paid": "5000.00", "delta": "1000.00", "action": "PREPARE_PAYROLL_ADJUSTMENT", "permission": "finance_approver", "must_cite": ["EXC-1018"], "hand_calc": "50000 x 12% approved exception"},
+    "CASE-1019": {"proof_status": "VERIFIED", "verdict": "REJECTED", "due": "5000.00", "paid": "5000.00", "delta": "0.00", "action": "RECONCILIATION_REPORT", "hand_calc": "pending exception not applied; 50000 x 10%"},
+    "CASE-1020": {"proof_status": "VERIFIED", "verdict": "REJECTED", "due": "4000.00", "paid": "5000.00", "delta": "-1000.00", "action": "FLAG_PAYOUT_REVIEW", "hand_calc": "closed 2026-07-02 -> v2 8%; 50000 x 8%"},
+    "CASE-1021": {"proof_status": "VERIFIED", "verdict": "REJECTED", "due": "2000.00", "paid": "3000.00", "delta": "-1000.00", "action": "FLAG_PAYOUT_REVIEW", "hand_calc": "(30000-10000 refund) x 10%"},
+    "CASE-1022": {"proof_status": "VERIFIED", "verdict": "REJECTED", "due": "3000.00", "paid": "6000.00", "delta": "-3000.00", "action": "FLAG_PAYOUT_REVIEW", "must_cite": ["PL-1022-2"], "hand_calc": "duplicate commission line"},
+    "CASE-1023": {"proof_status": "VERIFIED", "verdict": "REJECTED", "due": "0.00", "paid": "0.00", "delta": "0.00", "action": "RECONCILIATION_REPORT", "hand_calc": "stage negotiation -> not commissionable"},
+    "CASE-1024": {"proof_status": "VERIFIED", "verdict": "REJECTED", "due": "3000.00", "paid": "3000.00", "delta": "0.00", "action": "RECONCILIATION_REPORT", "hand_calc": "PAY-1024-2 value 2026-07-05 after cutoff"},
+    "CASE-1025": {"proof_status": "VERIFIED", "verdict": "SUPPORTED", "due": "12000.00", "paid": "6000.00", "delta": "6000.00", "action": "PREPARE_PAYROLL_ADJUSTMENT", "permission": "controller", "hand_calc": "120000 x 10%; 6000 > 5000 approver limit"}
+  }
+}

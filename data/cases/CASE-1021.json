@@ -1,0 +1,164 @@
+{
+  "case_id": "CASE-1021",
+  "title": "Refund before cutoff",
+  "tags": [
+    "refund",
+    "overpayment"
+  ],
+  "dispute": {
+    "id": "DSP-1021",
+    "employee_id": "E-2021",
+    "opportunity_id": "OPP-1021",
+    "claimed_shortfall": "500.00",
+    "filed_at": "2026-07-08",
+    "period": "2026-Q2",
+    "narrative": "Umbra commission seems $500 light.",
+    "effective_at": "2026-07-08",
+    "recorded_at": "2026-07-08T10:00:00Z"
+  },
+  "feeds": {
+    "hris": "ok",
+    "crm": "ok",
+    "clm": "ok",
+    "billing": "ok",
+    "billing.payments": "ok",
+    "comp": "ok",
+    "payroll": "ok"
+  },
+  "sources": {
+    "hris": {
+      "system": "hris-sim (Workday-like)",
+      "records": [
+        {
+          "id": "E-2021",
+          "type": "employee",
+          "name": "Isla Murray",
+          "email": "isla.murray@peoplepay.example",
+          "alt_emails": [],
+          "territory": "WEST",
+          "effective_at": "2025-01-06",
+          "recorded_at": "2025-01-06T10:00:00Z"
+        }
+      ]
+    },
+    "crm": {
+      "system": "crm-sim (Salesforce-like)",
+      "records": [
+        {
+          "id": "U-2021",
+          "type": "crm_user",
+          "name": "Isla Murray",
+          "email": "isla.murray@peoplepay.example",
+          "effective_at": "2025-01-06",
+          "recorded_at": "2025-01-06T10:00:00Z"
+        },
+        {
+          "id": "OPP-1021",
+          "type": "opportunity",
+          "account": "Umbra Studios",
+          "amount": "30000.00",
+          "stage": "closed_won",
+          "close_date": "2026-03-20",
+          "owner": "U-2021",
+          "effective_at": "2026-03-20",
+          "recorded_at": "2026-03-20T17:00:00Z"
+        },
+        {
+          "id": "SPL-1021-1",
+          "type": "split",
+          "opportunity_id": "OPP-1021",
+          "crm_user_id": "U-2021",
+          "pct": "100",
+          "effective_at": "2026-03-20",
+          "recorded_at": "2026-03-20T17:05:00Z"
+        }
+      ]
+    },
+    "clm": {
+      "system": "clm-sim (contract lifecycle)",
+      "records": [
+        {
+          "id": "CTR-1021",
+          "type": "contract",
+          "opportunity_id": "OPP-1021",
+          "tcv": "30000.00",
+          "signed_date": "2026-03-20",
+          "effective_at": "2026-03-20",
+          "recorded_at": "2026-03-20T18:00:00Z"
+        }
+      ]
+    },
+    "billing": {
+      "system": "billing-sim (NetSuite-like)",
+      "records": [
+        {
+          "id": "INV-1021",
+          "type": "invoice",
+          "contract_id": "CTR-1021",
+          "opportunity_id": "OPP-1021",
+          "amount": "30000.00",
+          "issued_date": "2026-04-01",
+          "effective_at": "2026-04-01",
+          "recorded_at": "2026-04-01T10:00:00Z"
+        },
+        {
+          "id": "PAY-1021-1",
+          "type": "payment",
+          "invoice_id": "INV-1021",
+          "amount": "30000.00",
+          "value_date": "2026-04-28",
+          "effective_at": "2026-04-28",
+          "recorded_at": "2026-04-28T12:00:00Z"
+        },
+        {
+          "id": "RF-1021",
+          "type": "refund",
+          "invoice_id": "INV-1021",
+          "amount": "10000.00",
+          "value_date": "2026-06-01",
+          "effective_at": "2026-06-01",
+          "recorded_at": "2026-06-01T14:00:00Z"
+        }
+      ]
+    },
+    "comp": {
+      "system": "comp-admin-sim",
+      "records": []
+    },
+    "payroll": {
+      "system": "payroll-sim (ADP-like)",
+      "records": [
+        {
+          "id": "CAL-2026-Q2",
+          "type": "pay_calendar",
+          "period": "2026-Q2",
+          "measurement_cutoff": "2026-06-30",
+          "effective_at": "2026-06-30",
+          "recorded_at": "2026-01-02T10:00:00Z"
+        },
+        {
+          "id": "PB-2026-05",
+          "type": "payroll_batch",
+          "status": "POSTED",
+          "posted_date": "2026-05-31",
+          "approved_by": "PAYROLL-OPS-2",
+          "effective_at": "2026-05-31",
+          "recorded_at": "2026-05-31T20:00:00Z"
+        },
+        {
+          "id": "PL-1021-1",
+          "type": "payroll_line",
+          "batch_id": "PB-2026-05",
+          "employee_id": "E-2021",
+          "opportunity_id": "OPP-1021",
+          "line_type": "commission",
+          "amount": "3000.00",
+          "reference_id": "OPP-1021",
+          "memo": "",
+          "effective_at": "2026-05-31",
+          "recorded_at": "2026-05-31T20:00:00Z"
+        }
+      ]
+    }
+  }
+}

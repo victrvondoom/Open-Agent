@@ -1,0 +1,176 @@
+{
+  "case_id": "CASE-1011",
+  "title": "Conflicting amendments (immaterial)",
+  "tags": [
+    "amendment",
+    "contradiction",
+    "underpayment"
+  ],
+  "dispute": {
+    "id": "DSP-1011",
+    "employee_id": "E-2011",
+    "opportunity_id": "OPP-1011",
+    "claimed_shortfall": "1000.00",
+    "filed_at": "2026-07-08",
+    "period": "2026-Q2",
+    "narrative": "$50,000 has been collected on Kestrel; I was paid on $40,000.",
+    "effective_at": "2026-07-08",
+    "recorded_at": "2026-07-08T10:00:00Z"
+  },
+  "feeds": {
+    "hris": "ok",
+    "crm": "ok",
+    "clm": "ok",
+    "billing": "ok",
+    "billing.payments": "ok",
+    "comp": "ok",
+    "payroll": "ok"
+  },
+  "sources": {
+    "hris": {
+      "system": "hris-sim (Workday-like)",
+      "records": [
+        {
+          "id": "E-2011",
+          "type": "employee",
+          "name": "Elena Popescu",
+          "email": "elena.popescu@peoplepay.example",
+          "alt_emails": [],
+          "territory": "WEST",
+          "effective_at": "2025-01-06",
+          "recorded_at": "2025-01-06T10:00:00Z"
+        }
+      ]
+    },
+    "crm": {
+      "system": "crm-sim (Salesforce-like)",
+      "records": [
+        {
+          "id": "U-2011",
+          "type": "crm_user",
+          "name": "Elena Popescu",
+          "email": "elena.popescu@peoplepay.example",
+          "effective_at": "2025-01-06",
+          "recorded_at": "2025-01-06T10:00:00Z"
+        },
+        {
+          "id": "OPP-1011",
+          "type": "opportunity",
+          "account": "Kestrel Energy",
+          "amount": "80000.00",
+          "stage": "closed_won",
+          "close_date": "2026-03-20",
+          "owner": "U-2011",
+          "effective_at": "2026-03-20",
+          "recorded_at": "2026-03-20T17:00:00Z"
+        },
+        {
+          "id": "SPL-1011-1",
+          "type": "split",
+          "opportunity_id": "OPP-1011",
+          "crm_user_id": "U-2011",
+          "pct": "100",
+          "effective_at": "2026-03-20",
+          "recorded_at": "2026-03-20T17:05:00Z"
+        }
+      ]
+    },
+    "clm": {
+      "system": "clm-sim (contract lifecycle)",
+      "records": [
+        {
+          "id": "CTR-1011",
+          "type": "contract",
+          "opportunity_id": "OPP-1011",
+          "tcv": "80000.00",
+          "signed_date": "2026-03-20",
+          "effective_at": "2026-03-20",
+          "recorded_at": "2026-03-20T18:00:00Z"
+        },
+        {
+          "id": "AMD-1011-A",
+          "type": "amendment",
+          "contract_id": "CTR-1011",
+          "new_tcv": "70000.00",
+          "effective_date": "2026-04-01",
+          "signed_date": "2026-03-30",
+          "effective_at": "2026-04-01",
+          "recorded_at": "2026-03-30T18:00:00Z"
+        },
+        {
+          "id": "AMD-1011-B",
+          "type": "amendment",
+          "contract_id": "CTR-1011",
+          "new_tcv": "75000.00",
+          "effective_date": "2026-04-01",
+          "signed_date": "2026-03-31",
+          "effective_at": "2026-04-01",
+          "recorded_at": "2026-03-31T18:00:00Z"
+        }
+      ]
+    },
+    "billing": {
+      "system": "billing-sim (NetSuite-like)",
+      "records": [
+        {
+          "id": "INV-1011",
+          "type": "invoice",
+          "contract_id": "CTR-1011",
+          "opportunity_id": "OPP-1011",
+          "amount": "50000.00",
+          "issued_date": "2026-04-02",
+          "effective_at": "2026-04-02",
+          "recorded_at": "2026-04-02T10:00:00Z"
+        },
+        {
+          "id": "PAY-1011-1",
+          "type": "payment",
+          "invoice_id": "INV-1011",
+          "amount": "50000.00",
+          "value_date": "2026-05-05",
+          "effective_at": "2026-05-05",
+          "recorded_at": "2026-05-05T12:00:00Z"
+        }
+      ]
+    },
+    "comp": {
+      "system": "comp-admin-sim",
+      "records": []
+    },
+    "payroll": {
+      "system": "payroll-sim (ADP-like)",
+      "records": [
+        {
+          "id": "CAL-2026-Q2",
+          "type": "pay_calendar",
+          "period": "2026-Q2",
+          "measurement_cutoff": "2026-06-30",
+          "effective_at": "2026-06-30",
+          "recorded_at": "2026-01-02T10:00:00Z"
+        },
+        {
+          "id": "PB-2026-05",
+          "type": "payroll_batch",
+          "status": "POSTED",
+          "posted_date": "2026-05-31",
+          "approved_by": "PAYROLL-OPS-2",
+          "effective_at": "2026-05-31",
+          "recorded_at": "2026-05-31T20:00:00Z"
+        },
+        {
+          "id": "PL-1011-1",
+          "type": "payroll_line",
+          "batch_id": "PB-2026-05",
+          "employee_id": "E-2011",
+          "opportunity_id": "OPP-1011",
+          "line_type": "commission",
+          "amount": "4000.00",
+          "reference_id": "OPP-1011",
+          "memo": "",
+          "effective_at": "2026-05-31",
+          "recorded_at": "2026-05-31T20:00:00Z"
+        }
+      ]
+    }
+  }
+}

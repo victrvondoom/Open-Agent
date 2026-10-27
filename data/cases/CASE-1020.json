@@ -1,0 +1,155 @@
+{
+  "case_id": "CASE-1020",
+  "title": "Plan version boundary (overpaid)",
+  "tags": [
+    "policy_version",
+    "overpayment"
+  ],
+  "dispute": {
+    "id": "DSP-1020",
+    "employee_id": "E-2020",
+    "opportunity_id": "OPP-1020",
+    "claimed_shortfall": "200.00",
+    "filed_at": "2026-10-05",
+    "period": "2026-Q3",
+    "narrative": "I think a $200 bonus is missing on Tidal Water.",
+    "effective_at": "2026-10-05",
+    "recorded_at": "2026-10-05T10:00:00Z"
+  },
+  "feeds": {
+    "hris": "ok",
+    "crm": "ok",
+    "clm": "ok",
+    "billing": "ok",
+    "billing.payments": "ok",
+    "comp": "ok",
+    "payroll": "ok"
+  },
+  "sources": {
+    "hris": {
+      "system": "hris-sim (Workday-like)",
+      "records": [
+        {
+          "id": "E-2020",
+          "type": "employee",
+          "name": "Ethan Cole",
+          "email": "ethan.cole@peoplepay.example",
+          "alt_emails": [],
+          "territory": "WEST",
+          "effective_at": "2025-01-06",
+          "recorded_at": "2025-01-06T10:00:00Z"
+        }
+      ]
+    },
+    "crm": {
+      "system": "crm-sim (Salesforce-like)",
+      "records": [
+        {
+          "id": "U-2020",
+          "type": "crm_user",
+          "name": "Ethan Cole",
+          "email": "ethan.cole@peoplepay.example",
+          "effective_at": "2025-01-06",
+          "recorded_at": "2025-01-06T10:00:00Z"
+        },
+        {
+          "id": "OPP-1020",
+          "type": "opportunity",
+          "account": "Tidal Water",
+          "amount": "50000.00",
+          "stage": "closed_won",
+          "close_date": "2026-07-02",
+          "owner": "U-2020",
+          "effective_at": "2026-07-02",
+          "recorded_at": "2026-07-02T17:00:00Z"
+        },
+        {
+          "id": "SPL-1020-1",
+          "type": "split",
+          "opportunity_id": "OPP-1020",
+          "crm_user_id": "U-2020",
+          "pct": "100",
+          "effective_at": "2026-07-02",
+          "recorded_at": "2026-07-02T17:05:00Z"
+        }
+      ]
+    },
+    "clm": {
+      "system": "clm-sim (contract lifecycle)",
+      "records": [
+        {
+          "id": "CTR-1020",
+          "type": "contract",
+          "opportunity_id": "OPP-1020",
+          "tcv": "50000.00",
+          "signed_date": "2026-07-02",
+          "effective_at": "2026-07-02",
+          "recorded_at": "2026-07-02T18:00:00Z"
+        }
+      ]
+    },
+    "billing": {
+      "system": "billing-sim (NetSuite-like)",
+      "records": [
+        {
+          "id": "INV-1020",
+          "type": "invoice",
+          "contract_id": "CTR-1020",
+          "opportunity_id": "OPP-1020",
+          "amount": "50000.00",
+          "issued_date": "2026-07-05",
+          "effective_at": "2026-07-05",
+          "recorded_at": "2026-07-05T10:00:00Z"
+        },
+        {
+          "id": "PAY-1020-1",
+          "type": "payment",
+          "invoice_id": "INV-1020",
+          "amount": "50000.00",
+          "value_date": "2026-08-15",
+          "effective_at": "2026-08-15",
+          "recorded_at": "2026-08-15T12:00:00Z"
+        }
+      ]
+    },
+    "comp": {
+      "system": "comp-admin-sim",
+      "records": []
+    },
+    "payroll": {
+      "system": "payroll-sim (ADP-like)",
+      "records": [
+        {
+          "id": "CAL-2026-Q3",
+          "type": "pay_calendar",
+          "period": "2026-Q3",
+          "measurement_cutoff": "2026-09-30",
+          "effective_at": "2026-09-30",
+          "recorded_at": "2026-01-02T10:00:00Z"
+        },
+        {
+          "id": "PB-2026-08",
+          "type": "payroll_batch",
+          "status": "POSTED",
+          "posted_date": "2026-08-31",
+          "approved_by": "PAYROLL-OPS-2",
+          "effective_at": "2026-08-31",
+          "recorded_at": "2026-08-31T20:00:00Z"
+        },
+        {
+          "id": "PL-1020-1",
+          "type": "payroll_line",
+          "batch_id": "PB-2026-08",
+          "employee_id": "E-2020",
+          "opportunity_id": "OPP-1020",
+          "line_type": "commission",
+          "amount": "5000.00",
+          "reference_id": "OPP-1020",
+          "memo": "",
+          "effective_at": "2026-08-31",
+          "recorded_at": "2026-08-31T20:00:00Z"
+        }
+      ]
+    }
+  }
+}
