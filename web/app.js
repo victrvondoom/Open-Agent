@@ -67,20 +67,40 @@ async function refreshIntegrations() {
   const tiles = $("#integ-grid");
   if (tiles) tiles.innerHTML = integrationTiles(integ);
   $("#integrations").innerHTML = integ.rows.filter((r) => r.state !== "N/A").map((r) =>
-    `<button class="chip st-${esc(r.state)}" data-jump="s-integ" title="${esc(r.capability + " — " + r.detail)}">${esc(r.sponsor)}: ${esc(r.state.replace(/_/g, " "))}</button>`).join("");
+    `<button class="chip st-${esc(r.state)}" data-jump="s-integ" title="${esc(r.sponsor + ": " + r.state + " — " + r.capability)}">${esc(r.short || r.sponsor)}</button>`).join("");
   document.querySelectorAll("[data-jump]").forEach((el) => (el.onclick = () => { const t = document.getElementById(el.dataset.jump); if (t) t.scrollIntoView({ behavior: "smooth", block: "start" }); }));
 }
 
 const STATE_HELP = { LIVE: "a real execution or request succeeded in this process", CONFIGURED_UNVERIFIED: "configured; no successful call yet",
   FALLBACK: "not configured; local / simulated path in use", UNAVAILABLE: "configured; the last attempt failed", "N/A": "not a runtime integration" };
 
+const ago = (iso) => { if (!iso) return "never"; const s = Math.max(0, (Date.now() - Date.parse(iso)) / 1000); return s < 60 ? `${Math.round(s)}s ago` : s < 3600 ? `${Math.round(s / 60)}m ago` : `${Math.round(s / 3600)}h ago`; };
+const usedText = (u) => u === undefined || u === null ? "—" : u === false ? "no" : u === true ? "yes"
+  : Array.isArray(u) ? `yes (${u.join(", ")})` : typeof u === "object" ? Object.entries(u).map(([k, v]) => `${k} ${v}`).join(" · ") : String(u);
+
 function integrationTiles(integ) {
   return integ.rows.map((r) => `
     <div class="itile st-${esc(r.state)}">
       <div class="iname"><span>${esc(r.sponsor)}</span><span class="chip st-${esc(r.state)}" title="${esc(STATE_HELP[r.state] || "")}">${esc(r.state.replace(/_/g, " "))}</span></div>
       <div class="icap">${esc(r.capability)}</div>
-      <div class="idet" title="${esc(r.detail)}">${esc(r.detail)}</div>
+      ${r.state === "N/A" ? `<div class="idet">${esc(r.detail)}</div>` : `
+      <dl class="idl">
+        <dt>Configured</dt><dd>${r.configured ? "yes" : "no"}</dd>
+        <dt>Connectivity</dt><dd class="conn-${esc(String(r.connectivity).split(" ")[0])}">${esc(r.connectivity)}</dd>
+        <dt>Provider</dt><dd title="${esc(r.provider || "")}">${esc(r.provider || "—")}</dd>
+        <dt>Last success</dt><dd>${esc(ago(r.last_success))}</dd>
+        <dt>Latency</dt><dd class="mono">${r.latency_ms === null || r.latency_ms === undefined ? "—" : esc(r.latency_ms) + " ms"}</dd>
+        <dt>Last error</dt><dd class="${r.last_error ? "neg" : ""}">${esc(r.last_error || "none")}</dd>
+        <dt>Used in latest run</dt><dd>${esc(usedText(r.used_in_latest))}</dd>
+        <dt>Data</dt><dd>${esc(r.data)}</dd>
+      </dl>
+      <div class="idet" title="${esc(r.detail)}">${esc(r.detail)}</div>`}
     </div>`).join("");
+}
+
+function degradedBanner(integ) {
+  const bad = (integ?.rows || []).filter((r) => r.state === "UNAVAILABLE");
+  return bad.length ? `<div class="banner bad">Degraded: ${bad.map((r) => `${esc(r.sponsor)} (${esc(r.last_error || "unavailable")})`).join(", ")}. PayProof is using its fallback path and says so on every result.</div>` : "";
 }
 
 async function runIntegrationCheck() {
@@ -90,7 +110,8 @@ async function runIntegrationCheck() {
     const r = await api("/api/integrations/check", { method: "POST" });
     state.integrations = r.status;
     $("#integ-grid").innerHTML = integrationTiles(r.status);
-    $("#integ-last").textContent = `Checked ${r.checked_at}: ${r.calls.join(" · ")}`;
+    $("#integ-last").innerHTML = `<b>Live check ${esc(r.checked_at)}</b><ul class="checks">${r.checks.map((c) =>
+      `<li class="${c.ok ? "ok" : c.ran ? "bad" : "skip"}"><span>${c.ok ? "✓" : c.ran ? "✗" : "–"}</span> <b>${esc(c.integration)}</b> <span class="mono">${esc(c.latency_ms)} ms</span> — ${esc(c.detail)}</li>`).join("")}</ul>`;
     await refreshIntegrations();
     toast("Integration check complete");
   } catch (e) { toast(e.message, true); }
@@ -124,11 +145,25 @@ async function openCase(id) {
   state.caseId = id;
   document.querySelectorAll(".qitem").forEach((el) => el.classList.toggle("active", el.dataset.case === id));
   const seq = (state.openSeq = (state.openSeq || 0) + 1);
-  const [data, sources] = await Promise.all([api(`/api/cases/${id}`), api(`/api/cases/${id}/sources`)]);
-  if (seq !== state.openSeq) return;  // a newer case was opened while this one loaded; don't render stale data
-  state.data = data; state.sources = sources;
-  render();
-  refreshIntegrations().catch(() => {});
+  if (state.inflight) state.inflight.abort();  // cancel the superseded request instead of letting it race
+  const ctl = (state.inflight = new AbortController());
+  const main = $("#main");
+  if (!state.data || state.data.case_id !== id) main.classList.add("loading");
+  try {
+    const [data, sources] = await Promise.all([api(`/api/cases/${id}`, { signal: ctl.signal }), api(`/api/cases/${id}/sources`, { signal: ctl.signal })]);
+    if (seq !== state.openSeq) return;  // a newer case was opened while this one loaded; don't render stale data
+    state.data = data; state.sources = sources;
+    render();
+    refreshIntegrations().catch(() => {});
+  } catch (e) {
+    if (e.name === "AbortError" || seq !== state.openSeq) return;
+    main.innerHTML = `<div class="card errcard"><h3><span>Could not load ${esc(id)}</span></h3>
+      <p>${esc(e.status ? `${e.status} ${e.body?.error || ""}: ${e.message}` : `Network error: ${e.message}`)}</p>
+      <div class="btns"><button id="retry" class="primary">Retry</button></div></div>`;
+    $("#retry").onclick = () => openCase(id);
+  } finally {
+    if (seq === state.openSeq) main.classList.remove("loading");
+  }
 }
 
 function recordById(id) {
@@ -170,8 +205,9 @@ function render() {
   const step = (k) => c.steps.find((s) => s.key === k);
   const strongest = d.skeptic.findings.find((f) => f.id === d.skeptic.strongest);
   $("#main").innerHTML = `
-  <nav class="nav"><a href="#s-integ">Integrations</a><a href="#s-evidence">1 Evidence</a><a href="#s-reason">2 Hypothesis vs skeptic</a><a href="#s-calc">3 Calculation</a>
-    <a href="#s-cf">4 Counterfactuals</a><a href="#s-proof">5 Proof bundle</a><a href="#s-action">6 Action</a><a href="#s-audit">7 Receipt & audit</a></nav>
+  ${degradedBanner(state.integrations)}
+  <nav class="nav"><a href="#s-trace">Trace</a><a href="#s-integ">Integrations</a><a href="#s-evidence">1 Evidence</a><a href="#s-reason">2 Hypothesis vs skeptic</a><a href="#s-calc">3 Calculation</a>
+    <a href="#s-cf">4 Counterfactuals</a><a href="#s-proof">5 Proof bundle</a><a href="#s-action">6 Action</a><a href="#s-memory">Precedents & security</a><a href="#s-audit">7 Receipt & audit</a></nav>
   <section class="hero">
     <div class="card">
       <div class="dim mono">${esc(d.case_id)} · ${esc(d.dispute.id)} · filed ${esc(d.dispute.filed_at)} · period ${esc(d.dispute.period)}</div>
@@ -201,6 +237,16 @@ function render() {
         <div class="k">latency</div><div>${esc(d.telemetry.latency_ms)} ms</div>
       </div>
     </div>
+  </section>
+
+  <section class="card full" id="s-trace">
+    <h3><span>Agent pipeline trace — this run</span><span class="dim" style="text-transform:none;letter-spacing:0;font-weight:500">${esc(d.run_id)} · ${esc(d.telemetry.latency_ms)} ms total · recorded by the backend, not animated</span></h3>
+    <ol class="trace">${(d.trace || []).map((t, i) => `<li><span class="tn">${i + 1}</span><div><div class="tt"><b>${esc(t.agent)}</b><span class="mono dim">${esc(t.ms)} ms</span></div>
+      <div class="ts">${esc(t.summary)}</div></div></li>`).join("")}
+      <li><span class="tn">${(d.trace || []).length + 1}</span><div><div class="tt"><b>Human approval gate</b><span class="dim">required</span></div>
+      <div class="ts">${esc(d.proposed_action.required_permission)} must approve; the system never executes a consequential action on its own${d.proposed_action.escalated ? " · <b>escalated</b>" : ""}.</div></div></li>
+      <li><span class="tn">${(d.trace || []).length + 2}</span><div><div class="tt"><b>Meterless H-MEM</b><span class="dim">learning</span></div>
+      <div class="ts">${d.precedents ? `${esc(d.precedents.precedents.length)} verified precedent(s) recalled for patterns ${esc(d.precedents.patterns.join(", ") || "none")}` : "—"}; this case is stored only after an approved, postcondition-verified action.</div></div></li></ol>
   </section>
 
   <section class="card integ" id="s-integ">
@@ -280,11 +326,24 @@ function render() {
     </div>
   </section>
 
+  <section class="grid2" id="s-memory">
+    <div class="card"><h3><span>Precedents — Meterless H-MEM</span><span class="dim" style="text-transform:none;letter-spacing:0;font-weight:500">verified outcomes only · never its own case · never alters the calculation</span></h3>
+      ${precedentPanel(d)}</div>
+    <div class="card"><h3><span>Security — Meterless Scout guard</span>${d.security.quarantined.length ? pill("UNRESOLVED", "quarantined") : pill("VERIFIED", "clean")}</h3>
+      ${d.security.quarantined.length ? d.security.quarantined.map((q) => `<div class="finding"><div class="t">${cite(q.record_id)} <span class="mono">${esc(q.field)}</span></div>
+        <div class="dim">Embedded instruction detected (${esc(q.kinds.join(", "))}, score ${esc(q.score)}). Text excluded from model context; action escalated to controller. Payload is not logged.</div></div>`).join("")
+        : `<p class="dim">No embedded instructions in ${esc(Object.values(state.sources.sources).reduce((n, b) => n + b.records.length, 0))} retrieved records. Intake text is checked before a case is filed; every action carries a signed Scout execution contract.</p>`}
+      ${d.security.malformed.length ? `<h4>Malformed records excluded</h4>${d.security.malformed.map((m) => `<div class="finding">${cite(m.record_id)} ${esc(m.field)} is not an exact decimal</div>`).join("")}` : ""}
+    </div>
+  </section>
+
   <section class="card full" id="s-action">${actionPanel(d)}</section>
   <section class="card full" id="s-audit"><h3><span><span class="n">7</span>Execution receipt & audit trail</span><span id="chain"></span></h3><div id="receipt"></div><div class="audit" id="audit"></div></section>
   `;
   drawGraph(d.graph);
   $("#integ-check").onclick = runIntegrationCheck;
+  document.querySelectorAll("[data-compare]").forEach((el) => (el.onclick = () => openCompare(el.dataset.compare).catch((e) => toast(e.message, true))));
+  document.querySelectorAll("[data-open]").forEach((el) => (el.onclick = () => openCase(el.dataset.open)));
   wireActions();
   loadAudit();
 }
@@ -316,6 +375,46 @@ function waterfallCard(w) {
 
 const ORDER = ["PROPOSED", "VALIDATED", "AWAITING_APPROVAL", "APPROVED", "EXECUTED", "VERIFIED"];
 
+function precedentPanel(d) {
+  const p = d.precedents;
+  if (!p || !p.patterns.length) return `<p class="dim">No evidence patterns on this case, so there is nothing to match.</p>`;
+  if (!p.precedents.length) return `<p class="dim">Patterns: ${p.patterns.map((x) => `<span class="chip">${esc(x)}</span>`).join(" ")}</p>
+    <p class="dim">No verified precedents yet (cold memory). Settle a case with these patterns (approve + execute) and it becomes recallable here.</p>`;
+  return `<p class="dim">Patterns: ${p.patterns.map((x) => `<span class="chip">${esc(x)}</span>`).join(" ")}</p>
+    <table><tr><th>Precedent</th><th>Shared patterns</th><th>Outcome</th><th class="num">Relevance</th><th></th></tr>
+    ${p.precedents.map((x) => `<tr><td><b>${esc(x.case_id)}</b><div class="dim mono">${esc(x.memory_id)} · ${x.refs.slice(1, 3).map(esc).join(" · ")}</div></td>
+      <td>${x.shared_patterns.map((s) => `<span class="chip">${esc(s)}</span>`).join(" ") || "—"}</td>
+      <td>${esc((x.verdict || "").replace(/_/g, " ").toLowerCase())} · ${esc((x.action || "").replace(/_/g, " ").toLowerCase())}
+        ${x.consistent === null ? "" : x.consistent ? pill("VERIFIED", "consistent") : pill("DISPUTED", "differs")}</td>
+      <td class="num">${esc(x.relevance)}</td>
+      <td><button class="ghost" data-compare="${esc(x.case_id)}">Compare</button> <button class="ghost" data-open="${esc(x.case_id)}">Open</button></td></tr>`).join("")}</table>`;
+}
+
+async function openCompare(otherId) {
+  const a = state.data, b = await api(`/api/cases/${otherId}`);
+  const row = (k, f) => `<tr><td class="dim">${esc(k)}</td><td>${f(a)}</td><td>${f(b)}</td></tr>`;
+  const due = (x) => x.proof_status === "VERIFIED" ? money(x.calculation.due) : "—";
+  $("#drawer-title").textContent = `Compare ${a.case_id} ↔ ${otherId}`;
+  $("#drawer-body").innerHTML = `<table><tr><th></th><th>${esc(a.case_id)}</th><th>${esc(otherId)}</th></tr>
+    ${row("Title", (x) => esc(x.title))}${row("Proof", (x) => pill(x.proof_status))}${row("Verdict", (x) => pill(x.verdict))}
+    ${row("Claimed", (x) => money(x.dispute.claimed_shortfall))}${row("Verified due", due)}${row("Paid", (x) => money(x.calculation.paid))}
+    ${row("Action", (x) => esc(x.proposed_action.type.replace(/_/g, " ")))}${row("Approval", (x) => esc(x.proposed_action.required_permission))}
+    ${row("Skeptic findings", (x) => x.skeptic.findings.map((f) => `<div>${pill(f.outcome)} ${esc(f.title)}</div>`).join(""))}
+    ${row("Rules applied", (x) => esc([...new Set(x.calculation.steps.map((s) => s.rule))].join(", ")))}</table>
+    <p class="dim">Both sides are live investigations of the current evidence; nothing here is copied from memory.</p>`;
+  $("#drawer").classList.remove("hidden");
+}
+
+async function exportDossier(caseId) {
+  const res = await fetch(`/api/cases/${caseId}/dossier`, { headers: { "X-Demo-User": state.user } });
+  if (!res.ok) { const b = await res.json().catch(() => ({})); throw new Error(b.message || res.statusText); }
+  const url = URL.createObjectURL(await res.blob());
+  const link = Object.assign(document.createElement("a"), { href: url, download: `payproof-dossier-${caseId}.json` });
+  document.body.appendChild(link); link.click(); link.remove();
+  setTimeout(() => URL.revokeObjectURL(url), 1000);
+  toast(`Dossier for ${caseId} downloaded (request ${res.headers.get("X-Request-ID") || "?"})`);
+}
+
 function actionPanel(d) {
   const last = d.actions.slice(-1)[0];
   const live = last && !["REJECTED", "EXPIRED"].includes(last.state) ? last : null;
@@ -338,7 +437,8 @@ function actionPanel(d) {
       <div class="k">Expected result</div><div>${esc(p.expected_result)}</div>
       <div class="k">Affected records</div><div>${p.affected_records.map((i) => cite(i)).join("")}</div>
       <div class="k">Preconditions</div><div class="mono">proof=${esc(p.preconditions.proof_status)} · paid_before=${esc(p.preconditions.expected_paid_before)} · fingerprint=${esc(p.preconditions.source_fingerprint.slice(0, 16))}…</div>
-      <div class="k">Required permission</div><div><span class="chip">${esc(p.required_permission)}</span> · SoD: proposer ≠ approver, subject cannot approve</div>
+      <div class="k">Required permission</div><div><span class="chip">${esc(p.required_permission)}</span>${p.escalated ? ` ${pill("DISPUTED", "escalated")}` : ""} · SoD: proposer ≠ approver, subject cannot approve</div>
+      ${act && act.contracts ? `<div class="k">Scout contracts</div><div class="mono">${act.contracts.map((c) => esc(`${c.contractId} (${c.risk})`)).join("<br>")}</div>` : ""}
       <div class="k">Idempotency key</div><div class="mono">${esc(p.idempotency_key)}</div>
       ${act ? `<div class="k">Action id</div><div class="mono">${esc(act.id)} · proposed by ${esc(act.proposed_by)}${act.approved_by ? " · approved by " + esc(act.approved_by) : ""}</div>` : ""}
       ${act && act.history.length ? `<div class="k">History</div><div class="mono">${act.history.map((h) => esc(`${h.at.slice(11)} ${h.to} by ${h.actor}${h.reason ? " (" + h.reason + ")" : ""}`)).join("<br>")}</div>` : ""}
@@ -347,10 +447,12 @@ function actionPanel(d) {
       <button id="b-propose" class="primary">Propose action</button>
       <button id="b-approve" ${act ? "" : "disabled"}>Approve</button>
       <button id="b-reject" class="danger" ${act ? "" : "disabled"}>Reject</button>
+      <button id="b-escalate" ${act && cur === "AWAITING_APPROVAL" && act.required_permission !== "controller" ? "" : "disabled"} title="Require controller approval">Escalate</button>
       <button id="b-exec" class="primary" ${act ? "" : "disabled"}>Execute (simulated)</button>
       <span style="flex:1"></span>
       <button id="b-late" class="ghost" title="Inject a late-arriving credit note dated before the cutoff">⚡ Inject late credit note</button>
       <button id="b-fail" class="ghost" title="Make the next adapter call fail">⚡ Fail next execution</button>
+      <button id="b-export" class="ghost" title="Download the full decision dossier as JSON">⇩ Export dossier</button>
     </div>
     <div class="dim" style="margin-top:8px">Acting as <b>${esc(me ? me.name + " (" + me.role + ")" : state.user)}</b>. Buttons are not hidden by role on purpose: the backend enforces authorization — try approving as the sales rep.</div>
     <div id="action-err" class="err">${esc(state.lastErr || "")}</div>`;
@@ -371,6 +473,9 @@ function wireActions() {
   $("#b-exec").onclick = () => run(() => api(`/api/actions/${act().id}/execute`, { method: "POST", headers: { "Idempotency-Key": act().idempotency_key } }), (r) => `Action ${r.state}`);
   $("#b-late").onclick = () => run(() => api(`/api/cases/${d.case_id}/simulate/late-event`, { method: "POST" }), (r) => `Injected ${r.injected.id} — evidence changed`);
   $("#b-fail").onclick = () => run(() => api(`/api/sim/fail-next`, { method: "POST" }), () => "Next adapter call will fail");
+  $("#b-escalate").onclick = () => run(() => api(`/api/actions/${act().id}/escalate`, { method: "POST", body: JSON.stringify({ note: "escalated from Decision Room" }) }),
+    () => "Escalated: controller approval now required");
+  $("#b-export").onclick = () => exportDossier(d.case_id).catch((e) => toast(e.message, true));
 }
 
 async function loadAudit() {
