@@ -134,3 +134,11 @@ pre { background: #0a0f18; border: 1px solid var(--line); border-radius: 8px; pa
   .kv { grid-template-columns: 1fr; }
   .kpi .v { font-size: 16px; }
 }
+
+.form { display: grid; grid-template-columns: 1fr 1fr; gap: 8px 12px; margin-top: 10px; }
+.f { display: flex; flex-direction: column; gap: 3px; font-size: 12px; color: var(--dim); }
+.f.wide { grid-column: 1 / -1; }
+.f input, .f textarea, .f select { font: inherit; font-size: 13px; color: var(--text); background: #0a0f18; border: 1px solid var(--line); border-radius: 7px; padding: 6px 8px; }
+.f input[type=checkbox] { width: 18px; height: 18px; }
+.f textarea { font-family: var(--mono); resize: vertical; }
+@media (max-width: 760px) { .form { grid-template-columns: 1fr; } }

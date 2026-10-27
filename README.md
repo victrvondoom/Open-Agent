@@ -17,31 +17,46 @@ git clone https://github.com/victrvondoom/Open-Agent && cd Open-Agent
 python3 run.py                          # Decision Room + API → http://127.0.0.1:8360
 python3 run.py --case CASE-1001         # one investigation → JSON result + logs/RUN-…-trace.jsonl
 python3 run.py --check-integrations     # one real call to each configured sponsor service
-python3 -m unittest discover -s tests   # 44 tests (1 live-Zetaris smoke test skips without credentials)
-python3 -m payproof.bench               # 25-case benchmark → bench/results/latest.json + docs/BENCHMARK.md
+python3 -m unittest discover -s tests   # 53 tests (1 live-Zetaris smoke test skips without credentials)
+python3 -m payproof.bench               # 25-case benchmark → bench/results/latest.json, docs/BENCHMARK.md,
+                                        #   and regenerates the numbers in README.md and docs/deck.html
 ```
 
 Docker alternative: `docker build -t payproof . && docker run --rm -p 8360:8360 --env-file .env payproof`.
 
 Configuration lives in `.env.example`, with placeholders only. `SAMPLE_MODE=true` forces local fixtures and the deterministic narrator, so no network is used.
 
+**Nothing is a fixed demo path.**
+- **File your own dispute:** click **+ New dispute** in the Decision Room, or `POST /api/cases`. The form is prefilled from the real records of the case you're viewing; change any value (amounts, dates, identities, split, amendment, payments, credit notes, payroll lines, exceptions). The new case goes through the same pipeline: evidence, World Model, skeptic, counterfactuals, approval gate. It is stored in `var/cases/`.
+- **Re-run the benchmark** from the **Benchmark** panel or `POST /api/benchmark/run`.
+- **Numbers are generated, not typed.** The deck at `/deck` reads them live from the API. Its embedded copy, the PDF, the README benchmark and demo tables, and the video captions (`scripts/record_demo.js`) are all regenerated from real runs.
+- **Configuration is data:** users and roles in `data/users.json`, plan, rates and approval limits in `data/plans.json`.
+
 **Sample inputs and outputs:** [`samples/`](samples/) has three cases (the demo, the missing-evidence refusal, and a material contradiction), each with its full JSON output and agent traces. Regenerate them with `python3 run.py --samples`.
 
-## What it does — the demo case (CASE-1001)
+## What it does — the demo case
 
-Maya Chen disputes a **$3,000** shortfall on a deal the CRM shows at **$60,000** (10% → she expects $6,000).
+<!-- DEMO:START -->
+_Generated from a live investigation of `CASE-1001` (Northwind Logistics — $3,000 shortfall claim)._
 
-| Step | What PayProof finds | Evidence |
+Claimed shortfall **$3,000.00** → proof **VERIFIED**, verdict **partially supported**.
+
+| Reconciliation step | Amount | Evidence |
 |---|---|---|
-| Claimant expectation | $60,000 × 100% × 10% = **$6,000** | OPP-5521, SPL-5521-1 |
-| Eligible value (P-3.1) | amendment cuts the contract to $50,000 → **−$1,000** | CTR-3301, AMD-3301-1 |
-| Collection basis (P-3.2) | $36,000 + $9,000 paid − $2,000 credit note = $43,000 → **−$700** | INV-8801, PAY-44120, PAY-44987, CN-0077 |
-| **Verified due** | **$4,300.00** | deterministic Decimal, ROUND_HALF_UP once |
-| Paid | $3,600 − $200 − $200: the credit-note clawback was posted **twice** | PL-…-118, PL-…-041, PL-…-042 |
-| **Verified underpayment** | **$1,100.00**, so the claim is *partially supported* | |
+| **Claimant expectation: CRM amount x split x rate** | $6,000.00 | OPP-5521, SPL-5521-1 |
+| Eligible contract value differs from CRM amount (P-3.1) | -$1,000.00 | CTR-3301, AMD-3301-1 |
+| Collection basis: only net cash collected by cutoff is commissionable (P-3.2) | -$700.00 | INV-8801, PAY-44120, PAY-44987, CN-0077 |
+| **Verified commission due** | $4,300.00 |  |
+| Paid: commission PL-20260531-118 (Q2 commission on collected cash) | -$3,600.00 | PL-20260531-118 |
+| Paid: clawback PL-20260630-041 (Clawback CN-0077) | +$200.00 | PL-20260630-041 |
+| Paid: clawback PL-20260630-042 (Clawback CN-0077 (re-import)) | +$200.00 | PL-20260630-042 |
+| **Verified variance (due - paid)** | $1,100.00 |  |
 
-- **Skeptic's strongest counterargument:** PAY-44987 was *recorded* after the cutoff, so excluding it would leave only $200 owed. Counterfactual replay tests this, and it is ruled out under P-4.2 (value date governs).
-- **Action:** `PREPARE_PAYROLL_ADJUSTMENT $1,100.00`, which needs `finance_approver`. The rep's approval attempt gets a **403**. Once approved, payroll ops executes once on the simulated ledger. The case is then re-investigated (paid = $4,300, variance = $0) and a hash-chained receipt is issued.
+- **Skeptic's strongest counterargument:** PAY-44987 was recorded 2026-07-03, after the cutoff. If true, the variance changes by -$900.00. Value date 2026-06-10 is before cutoff. If recording date governed, it would be excluded. P-4.2 says value date governs, so it is included.
+- **Proposed action:** `PREPARE_PAYROLL_ADJUSTMENT` $1,100.00, which needs `finance_approver`. The rep's own approval attempt gets a **403**. Once approved, payroll ops executes once on the simulated ledger. The case is then re-investigated and a hash-chained receipt is issued.
+- **Counterfactuals (hypothetical):** Territory split misattributed (50/50 with U-91) → variance -$2,150.00; Use system-recorded dates instead of value dates → variance -$900.00; Invoice INV-8801 paid in full before cutoff → variance +$500.00
+<!-- DEMO:END -->
+
 - **Negative case (CASE-1015):** there is no contract in CLM, so the status is **NEEDS_EVIDENCE** and the only action available is `REQUEST_EVIDENCE`. No money moves.
 
 ## Architecture
@@ -87,6 +102,9 @@ Full matrix, evidence and remaining steps: [`docs/INTEGRATIONS.md`](docs/INTEGRA
 
 `python3 -m payproof.bench` runs 25 synthetic, hand-labelled cases. Ground truth is in `bench/ground_truth.json`, and the full report is [`docs/BENCHMARK.md`](docs/BENCHMARK.md).
 
+<!-- BENCH:START -->
+_Generated from `bench/results/latest.json` (2026-10-27T05:20:15Z, 25 cases, model calls: `{"deterministic-fallback": 50}`)._
+
 | Metric | PayProof | Rules-only baseline |
 |---|---|---|
 | Decision accuracy (status + verdict + action, + amount when money moves) | 25/25 | 11/25 |
@@ -99,7 +117,8 @@ Full matrix, evidence and remaining steps: [`docs/INTEGRATIONS.md`](docs/INTEGRA
 | Stale evidence between approval and execution: blocked | 8 / 8 | n/a |
 | Forced postcondition failures: receipts issued anyway | 0 / 25 | n/a |
 | Reproducibility (identical proof hash) | 100% | n/a |
-| Latency per investigation (local) | p50 ≈ 3 ms | n/a |
+| Latency per investigation (local) | p50 3.06 ms | n/a |
+<!-- BENCH:END -->
 
 **Model path:** every benchmark run used the deterministic narrator; **no live Nemotron results exist**. A stub endpoint that returns hallucinated ids and invented amounts has those claims dropped by the validator (`tests/test_model_path.py`), but that is a test, not a model evaluation.
 
@@ -114,7 +133,10 @@ Calls carry `X-Demo-User: ana|fin|ctl|ops|rep`. This is demo-only authentication
 | POST | `/api/actions/{id}/decision` | `{"decision":"approve"\|"reject"}` (approver within limits) |
 | POST | `/api/actions/{id}/execute` | header `Idempotency-Key` (payroll ops / controller) |
 | POST | `/api/cases/{id}/simulate/late-event` · `/api/sim/fail-next` | stale-evidence and failure demos |
-| GET | `/api/audit` · `/api/integrations` · `/api/benchmark` | |
+| GET | `/api/intake/template?from=CASE-…` | intake form prefilled from a case's real records |
+| POST | `/api/cases` | file a new dispute (analyst; validated, 422 on bad input) |
+| POST | `/api/benchmark/run` | re-run the benchmark (analyst / controller) |
+| GET | `/api/audit` · `/api/integrations` · `/api/benchmark` · `/deck` | |
 
 ## Repository map
 
@@ -130,12 +152,15 @@ payproof/
   llm.py             bounded Nemotron client, /models verification, fallback
   actions.py         state machine, authz, idempotency, stale gate, simulated adapter, audit
   integrations.py    runtime sponsor status
+  intake.py          validated dispute intake → full case snapshot
+  casebuilder.py     shared case builder (fixtures + intake)
+  report.py          regenerates deck/README numbers from real runs
   server.py · bench.py
 web/                 Decision Room (vanilla JS)
 data/                25 synthetic cases, plan, Zetaris CSV export
 samples/             3 sample inputs/outputs + traces
 docs/                ARCHITECTURE, INTEGRATIONS, BENCHMARK, DEMO_SCRIPT, SUBMISSION_CHECKLIST, deck.html/.pdf, img/
-tests/               44 tests
+tests/               53 tests
 ```
 
 ## Known limitations

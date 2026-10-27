@@ -34,14 +34,15 @@ async function boot() {
   const sel = $("#user");
   sel.innerHTML = state.users.map((u) => `<option value="${esc(u.token)}">${esc(u.name)} — ${esc(u.role)}</option>`).join("");
   sel.value = state.user;
-  sel.onchange = async () => { state.user = sel.value; localSet("pp-user", state.user); await loadQueue(); if (state.caseId) openCase(state.caseId).catch(() => { $("#main").innerHTML = `<div class="empty">This user cannot view the selected case.</div>`; }); };
-  $("#reset").onclick = async () => { await api("/api/demo/reset", { method: "POST" }); toast("Demo state reset"); await loadQueue(); if (state.caseId) openCase(state.caseId); };
+  sel.onchange = async () => { state.user = sel.value; localSet("pp-user", state.user); await loadQueue(); await openVisible(state.caseId); };
+  $("#reset").onclick = async () => { await api("/api/demo/reset", { method: "POST" }); toast("Demo state reset"); await loadQueue(); await openVisible(state.caseId); };
+  $("#new-case").onclick = () => openIntake().catch((e) => toast(e.message, true));
+  $("#bench").onclick = () => openBenchmark().catch((e) => toast(e.message, true));
   $("#drawer-close").onclick = () => $("#drawer").classList.add("hidden");
   document.addEventListener("click", (e) => { const c = e.target.closest("[data-rec]"); if (c) inspect(c.dataset.rec); });
   await refreshIntegrations();
   await loadQueue();
-  const first = new URLSearchParams(location.search).get("case") || "CASE-1001";
-  openCase(first).catch(() => {});
+  await openVisible(new URLSearchParams(location.search).get("case"));
 }
 
 async function refreshIntegrations() {
@@ -50,12 +51,21 @@ async function refreshIntegrations() {
     `<span class="chip st-${esc(r.state)}" title="${esc(r.capability + " — " + r.detail)}">${esc(r.sponsor)}: ${esc(r.state.replace(/_/g, " "))}</span>`).join("");
 }
 
+// Open `preferred` if this user can see it, otherwise the first case in their queue.
+async function openVisible(preferred) {
+  const ids = (state.queue || []).map((c) => c.case_id);
+  const target = ids.includes(preferred) ? preferred : ids[0];
+  if (!target) { $("#main").innerHTML = `<div class="empty">No cases visible to this user.</div>`; return; }
+  await openCase(target);
+}
+
 async function loadQueue() {
   const q = await api("/api/cases");
+  state.queue = q;
   $("#qcount").textContent = `${q.length} cases`;
   $("#queue").innerHTML = q.map((c) => `
     <div class="qitem ${c.case_id === state.caseId ? "active" : ""}" data-case="${esc(c.case_id)}">
-      <div class="qrow"><span class="qtitle">${esc(c.title)}</span>${pill(c.proof_status)}</div>
+      <div class="qrow"><span class="qtitle">${c.tags.includes("user-filed") ? '<span class="chip">new</span> ' : ""}${esc(c.title)}</span>${pill(c.proof_status)}</div>
       <div class="qrow qmeta"><span>${esc(c.case_id)} · ${esc(c.claimant)}</span><span class="mono">exposure ${money(c.exposure)}</span></div>
       <div class="qrow qmeta"><span>claim ${money(c.claimed)} · ${esc(c.verdict.replace(/_/g, " ").toLowerCase())}</span>
         <span>${c.action_state ? pill(c.action_state, "action " + c.action_state) : ""}</span></div>
@@ -345,6 +355,114 @@ function drawGraph(g) {
   }).join("");
   const heads = cols.map((c, ci) => `<text class="col" x="${8 + ci * W}" y="14">${esc(names[c])}</text>`).join("");
   $("#graph").innerHTML = `<svg width="${cols.length * W + 10}" height="${maxY + 10}">${heads}${edges}${nodes}</svg>`;
+}
+
+// ---------------------------------------------------------------- dispute intake
+const lines = (rows, cols) => (rows || []).map((r) => cols.map((c) => r[c] ?? "").filter((v, i) => v !== "" || i < cols.length - 1).join(", ")).join("\n");
+const parseLines = (text, cols) => text.split("\n").map((l) => l.trim()).filter(Boolean).map((l) => {
+  const parts = l.split(",").map((x) => x.trim());
+  return Object.fromEntries(cols.map((c, i) => [c, parts[i] || ""]).filter(([, v]) => v !== ""));
+});
+const field = (id, label, value, type = "text", extra = "") =>
+  `<label class="f"><span>${esc(label)}</span><input id="f-${id}" type="${type}" value="${esc(value ?? "")}" ${extra}></label>`;
+const area = (id, label, value, hint) =>
+  `<label class="f wide"><span>${esc(label)} <em class="dim">${esc(hint)}</em></span><textarea id="f-${id}" rows="3">${esc(value)}</textarea></label>`;
+
+async function openIntake() {
+  const t = await api(`/api/intake/template?from=${encodeURIComponent(state.caseId || "")}`);
+  const f = t.form, am = f.amendment || {};
+  $("#drawer-title").textContent = "File a new dispute";
+  $("#drawer-body").innerHTML = `
+    <p class="dim">Prefilled from the actual records of ${esc(t.from)}. Edit anything: the same deterministic pipeline, skeptic,
+      World Model and approval gate run on the new case. Amounts are exact decimals; dates are YYYY-MM-DD.</p>
+    <div class="form">
+      ${field("account", "Account", f.account)}${field("title", "Case title (optional)", f.title)}
+      ${field("rep_name", "Rep name (HRIS)", f.rep_name)}${field("rep_email", "Rep email (HRIS)", f.rep_email, "email")}
+      ${field("crm_name", "CRM user name", f.crm_name)}${field("crm_email", "CRM user email", f.crm_email, "email")}
+      ${field("crm_amount", "CRM amount", f.crm_amount)}${field("close_date", "Close date", f.close_date, "date")}
+      <label class="f"><span>Stage</span><select id="f-stage">${["closed_won", "negotiation", "proposal", "closed_lost"].map((x) => `<option ${x === f.stage ? "selected" : ""}>${x}</option>`).join("")}</select></label>
+      <label class="f"><span>Commission period</span><select id="f-period">${["2026-Q1", "2026-Q2", "2026-Q3", "2026-Q4"].map((x) => `<option ${x === f.period ? "selected" : ""}>${x}</option>`).join("")}</select></label>
+      ${field("split_pct", "Rep split %", f.split_pct)}${field("co_seller_name", "Co-seller (if split < 100)", "")}
+      ${field("contract_tcv", "Contract TCV (blank = no contract)", f.contract_tcv)}${field("contract_signed", "Contract signed", f.contract_signed, "date")}
+      ${field("am_new_tcv", "Amendment new TCV (optional)", am.new_tcv)}${field("am_effective", "Amendment effective", am.effective, "date")}
+      ${field("am_signed", "Amendment signed", am.signed, "date")}${field("invoice_amount", "Invoice amount", f.invoice_amount)}
+      ${field("invoice_date", "Invoice date", f.invoice_date, "date")}${field("claimed_shortfall", "Claimed shortfall", f.claimed_shortfall)}
+      ${area("payments", "Payments", lines(f.payments, ["amount", "value_date", "recorded_date"]), "one per line: amount, value date[, recorded date]")}
+      ${area("credit_notes", "Credit notes", lines(f.credit_notes, ["amount", "issued_date"]), "amount, issued date")}
+      ${area("refunds", "Refunds", lines(f.refunds, ["amount", "value_date"]), "amount, value date")}
+      ${area("payroll", "Payroll lines paid", lines(f.payroll, ["amount", "posted_date", "type"]), "amount, posted date, commission|clawback|adjustment")}
+      ${field("ex_rate", "Rate exception (optional, e.g. 0.12)", "")}
+      <label class="f"><span>Exception approved?</span><input id="f-ex_approved" type="checkbox"></label>
+      <label class="f"><span>Payments feed available?</span><input id="f-feed" type="checkbox" ${f.payments_feed_available ? "checked" : ""}></label>
+      <label class="f wide"><span>Rep's narrative</span><textarea id="f-narrative" rows="2">${esc(f.narrative)}</textarea></label>
+    </div>
+    <div class="btns"><button id="f-submit" class="primary">File dispute and investigate</button></div>
+    <div id="f-err" class="err"></div>`;
+  $("#drawer").classList.remove("hidden");
+  $("#f-submit").onclick = submitIntake;
+}
+
+async function submitIntake() {
+  const v = (id) => $(`#f-${id}`).value.trim();
+  const form = {
+    account: v("account"), title: v("title"), rep_name: v("rep_name"), rep_email: v("rep_email"), crm_name: v("crm_name"),
+    crm_email: v("crm_email"), crm_amount: v("crm_amount"), close_date: v("close_date"), stage: v("stage"), period: v("period"),
+    split_pct: v("split_pct") || "100", co_seller_name: v("co_seller_name"), contract_tcv: v("contract_tcv"),
+    contract_signed: v("contract_signed"), invoice_amount: v("invoice_amount"), invoice_date: v("invoice_date"),
+    claimed_shortfall: v("claimed_shortfall"), narrative: v("narrative"), payments_feed_available: $("#f-feed").checked,
+    payments: parseLines(v("payments"), ["amount", "value_date", "recorded_date"]),
+    credit_notes: parseLines(v("credit_notes"), ["amount", "issued_date"]),
+    refunds: parseLines(v("refunds"), ["amount", "value_date"]),
+    payroll: parseLines(v("payroll"), ["amount", "posted_date", "type"]),
+  };
+  if (v("am_new_tcv")) form.amendment = { new_tcv: v("am_new_tcv"), effective: v("am_effective"), signed: v("am_signed") };
+  if (v("ex_rate")) form.exception = { rate: v("ex_rate"), approved: $("#f-ex_approved").checked };
+  try {
+    const r = await api("/api/cases", { method: "POST", body: JSON.stringify(form) });
+    $("#drawer").classList.add("hidden");
+    toast(`Filed ${r.case_id}: ${r.proof_status} → ${r.action.replace(/_/g, " ")}`);
+    await loadQueue();
+    await openCase(r.case_id);
+  } catch (e) {
+    $("#f-err").textContent = `${e.status || ""} ${e.message}`;
+  }
+}
+
+// ---------------------------------------------------------------- live benchmark
+async function openBenchmark() {
+  $("#drawer-title").textContent = "Benchmark";
+  $("#drawer").classList.remove("hidden");
+  const renderReport = (r) => {
+    const a = r.agent, b = r.baseline, s = r.safety;
+    const row = (k, x, y) => `<tr><td>${esc(k)}</td><td class="num">${esc(x)}</td><td class="num">${esc(y)}</td></tr>`;
+    $("#drawer-body").innerHTML = `
+      <p class="dim">${esc(r.sample_size)} hand-labelled synthetic cases · generated ${esc(r.generated_at)}. Cases were authored alongside the engine.</p>
+      <table><tr><th>Metric</th><th class="num">PayProof</th><th class="num">Baseline</th></tr>
+        ${row("Decisions correct", `${a.decisions_correct}/${a.cases}`, `${b.decisions_correct}/${b.cases}`)}
+        ${row("Exact due amount", `${a.money_exact}/${a.money_cases}`, `${b.money_exact}/${b.money_cases}`)}
+        ${row("Mean abs. due error", "$" + a.money_mean_abs_error, "$" + b.money_mean_abs_error)}
+        ${row("Wrong adjustments", a.adjustment_false_positives, b.adjustment_false_positives)}
+        ${row("Correct abstentions", `${a.correct_abstentions}/${a.abstention_needed}`, `${b.correct_abstentions}/${b.abstention_needed}`)}
+        ${row("Citation coverage", (a.citation_coverage * 100).toFixed(1) + "%", (b.citation_coverage * 100).toFixed(1) + "%")}
+        ${row("Reproducibility", (a.reproducibility * 100).toFixed(1) + "%", "—")}
+        ${row("Latency p50", a.latency_ms_p50 + " ms", "—")}
+      </table>
+      <h4>Safety suite</h4>
+      <table>${row("Unauthorized succeeded", `${s.unauthorized_actions_succeeded} / ${s.unauthorized_attempts}`, "")}
+        ${row("Duplicate actions", `${s.duplicate_actions_created} / ${s.duplicate_execution_requests} requests`, "")}
+        ${row("Stale executions blocked", `${s.stale_executions_blocked} / ${s.stale_evidence_scenarios}`, "")}
+        ${row("Receipts despite failed postcondition", `${s.receipts_issued_despite_failed_postcondition} / ${s.forced_postcondition_failures}`, "")}</table>
+      <h4>Model usage</h4><pre>${esc(JSON.stringify(a.model_calls_by_model))}</pre>
+      <div class="btns"><button id="bench-run" class="primary">Re-run benchmark now</button></div><div id="bench-err" class="err"></div>`;
+    $("#bench-run").onclick = async () => {
+      $("#bench-run").disabled = true; $("#bench-run").textContent = "Running…";
+      try { renderReport(await api("/api/benchmark/run", { method: "POST" })); toast("Benchmark re-run complete"); }
+      catch (e) { $("#bench-err").textContent = `${e.status || ""} ${e.message}`; $("#bench-run").disabled = false; $("#bench-run").textContent = "Re-run benchmark now"; }
+    };
+  };
+  try { renderReport(await api("/api/benchmark")); }
+  catch (e) { $("#drawer-body").innerHTML = `<p class="dim">No report yet.</p><div class="btns"><button id="bench-run" class="primary">Run benchmark</button></div><div id="bench-err" class="err"></div>`;
+    $("#bench-run").onclick = async () => renderReport(await api("/api/benchmark/run", { method: "POST" })); }
 }
 
 boot().catch((e) => { $("#main").innerHTML = `<div class="empty">Failed to load: ${esc(e.message)}</div>`; });

@@ -62,16 +62,9 @@
 </section>
 
 <section class="slide">
-  <div class="k">Demo case · CASE-1001</div>
-  <h2>Claimed $3,000. Verified $1,100.</h2>
-  <table>
-    <tr><td>Rep expectation: CRM $60,000 × 100% × 10%</td><td class="num">$6,000.00</td></tr>
-    <tr><td>Amendment AMD-3301-1 → eligible $50,000 (P-3.1)</td><td class="num bad">−$1,000.00</td></tr>
-    <tr><td>Only $43,000 net collected by cutoff (P-3.2)</td><td class="num bad">−$700.00</td></tr>
-    <tr><th>Verified due</th><th class="num">$4,300.00</th></tr>
-    <tr><td>Paid: $3,600 − $200 − $200 (duplicate clawback)</td><td class="num">$3,200.00</td></tr>
-    <tr><th>Verified underpayment</th><th class="num ok">$1,100.00</th></tr>
-  </table>
+  <div class="k" id="d-demo-k">Demo case</div>
+  <h2 id="d-demo-title">Demo case</h2>
+  <table id="d-waterfall"></table>
   <p class="dim">Every line cites source records and a policy clause. All of it is computed by deterministic Decimal code.</p>
 </section>
 
@@ -80,7 +73,7 @@
   <h2>An adversarial workflow with a deterministic verifier</h2>
   <div class="flow"><span>Investigator</span><i>→</i><span>Skeptic</span><i>→</i><span>Policy verifier</span><i>→</i><span>Resolution planner</span><i>→</i><span>Final validator</span></div>
   <div class="grid" style="margin-top:22px">
-    <div class="card"><b>Skeptic's strongest counterargument</b><br>“PAY-44987 was recorded after cutoff. Exclude it and she's owed $200.” Tested with replay, then ruled out under P-4.2 (value date governs).</div>
+    <div class="card"><b>Skeptic's strongest counterargument</b><br><span id="d-strongest"></span></div>
     <div class="card"><b>Materiality, not vibes</b><br>Conflicting amendments are recomputed under each alternative. If the outcome changes the case is DISPUTED; if not, it is VERIFIED.</div>
     <div class="card"><b>Model at the edge</b><br>Nemotron only phrases explanations. Any sentence with an unknown record id or an invented amount is dropped and counted.</div>
   </div>
@@ -89,15 +82,8 @@
 <section class="slide">
   <div class="k">Signature feature</div>
   <h2>Counterfactual payout replay</h2>
-  <table>
-    <tr><th>Hypothetical scenario</th><th class="num">Due</th><th class="num">Δ variance</th></tr>
-    <tr><td>Timing by recorded date instead of value date</td><td class="num">$3,400.00</td><td class="num bad">−$900.00</td></tr>
-    <tr><td>Invoice paid in full before cutoff</td><td class="num">$4,800.00</td><td class="num ok">+$500.00</td></tr>
-    <tr><td>Credit note issued after cutoff</td><td class="num">$4,500.00</td><td class="num ok">+$200.00</td></tr>
-    <tr><td>Duplicate clawback never posted</td><td class="num">$4,300.00</td><td class="num bad">−$200.00</td></tr>
-    <tr><td>Amendment void (CRM value governs)</td><td class="num">$4,300.00</td><td class="num">$0.00</td></tr>
-  </table>
-  <p class="dim">Same engine, hypothetical overlays, always labelled. The rep's $60k premise turns out not to matter, because collections cap the base.</p>
+  <table id="d-cf"></table>
+  <p class="dim">Same engine, hypothetical overlays, always labelled hypothetical and never treated as financial events.</p>
 </section>
 
 <section class="slide">
@@ -105,29 +91,18 @@
   <h2>Approval gated, executed at most once, verified afterwards</h2>
   <div class="flow"><span>PROPOSED</span><i>→</i><span>VALIDATED</span><i>→</i><span>AWAITING_APPROVAL</span><i>→</i><span>APPROVED</span><i>→</i><span>EXECUTED</span><i>→</i><span class="ok">VERIFIED</span></div>
   <ul style="margin-top:22px">
-    <li>Backend authorization, approval limits ($5k approver / controller above), segregation of duties. The rep's approval gets a 403.</li>
+    <li>Backend authorization, approval limits (<span id="d-limit"></span> for a finance approver, controller above), segregation of duties. The rep's own approval gets a 403.</li>
     <li>Idempotency key and source fingerprint are re-checked at approval and at execution. Stale evidence moves the action to EXPIRED.</li>
-    <li>Postcondition: the case is re-investigated with the simulated ledger, so paid = $4,300 and variance = $0. A hash-chained receipt is issued.</li>
+    <li>Postcondition: the case is re-investigated with the simulated ledger, so paid = <span id="d-due"></span> and variance = $0. A hash-chained receipt is issued; a failed postcondition yields none.</li>
     <li>Negative case: no contract means NEEDS_EVIDENCE, and the only action allowed is to request evidence.</li>
   </ul>
 </section>
 
 <section class="slide">
   <div class="k">Evaluation · actual results</div>
-  <h2>25 hand-labelled synthetic cases</h2>
-  <table>
-    <tr><th>Metric</th><th class="num">PayProof</th><th class="num">Rules-only baseline</th></tr>
-    <tr><td>Decision accuracy (incl. amount when money moves)</td><td class="num">25/25</td><td class="num">11/25</td></tr>
-    <tr><td>Wrong payroll adjustments recommended</td><td class="num">0</td><td class="num">10</td></tr>
-    <tr><td>Correct abstention when evidence is missing or contradictory</td><td class="num">5/5</td><td class="num">0/5</td></tr>
-    <tr><td>Citation coverage of material claims</td><td class="num">100%</td><td class="num">0%</td></tr>
-    <tr><td>Unauthorized actions succeeded / attempts</td><td class="num">0 / 151</td><td class="num">n/a</td></tr>
-    <tr><td>Forced postcondition failures that still produced a receipt</td><td class="num">0 / 25</td><td class="num">n/a</td></tr>
-    <tr><td>Forced postcondition failures that still produced a receipt</td><td class="num">0 / 25</td><td class="num">n/a</td></tr>
-    <tr><td>Duplicate actions from 125 concurrent re-executions</td><td class="num">0</td><td class="num">n/a</td></tr>
-    <tr><td>Stale-evidence executions blocked</td><td class="num">8 / 8</td><td class="num">n/a</td></tr>
-  </table>
-  <p class="dim">Limitations: the cases and the engine were written by the same team, so these results show policy fidelity, not generalisation. The baseline is a transparent strawman. The model ran in deterministic-fallback mode, so there are no live-model results.</p>
+  <h2 id="d-eval-title">Benchmark</h2>
+  <table id="d-eval"></table>
+  <p class="dim" id="d-eval-note"></p>
 </section>
 
 <section class="slide">
@@ -163,7 +138,7 @@
     <div class="card"><b>UI</b><br>Vanilla JS Decision Room, no build step, responsive</div>
     <div class="card"><b>Data</b><br>Zetaris REST SQL or local synthetic fixtures (SAMPLE_MODE)</div>
     <div class="card"><b>Model</b><br>NVIDIA Nemotron via OpenAI-compatible API, at most 2 calls per run, cached</div>
-    <div class="card"><b>Evidence</b><br>JSONL traces in <code>logs/</code>, 3 samples, 44 tests, a 25-case benchmark</div>
+    <div class="card"><b>Evidence</b><br>JSONL traces in <code>logs/</code>, 3 samples, <span id="d-tests"></span> tests, a <span id="d-cases"></span>-case benchmark, and <b>dispute intake</b> so any new case runs the full pipeline</div>
     <div class="card"><b>Run</b><br><code>python3 run.py</code> or Docker; <code>run.py --check-integrations</code></div>
   </div>
 </section>
@@ -206,6 +181,61 @@
   <p class="dim">python3 -m unittest discover -s tests · python3 -m payproof.bench</p>
 </section>
 <div class="foot"><span id="n"></span> · ← → to navigate</div>
+<script id="deck-data" type="application/json">
+{"generated_at":"2026-10-27T05:20:15Z","sample_size":25,"agent":{"cases":25,"decision_accuracy":1.0,"decisions_correct":25,"status_accuracy":1.0,"action_accuracy":1.0,"money_cases":20,"money_exact":20,"money_mean_abs_error":"0.00","money_max_abs_error":"0.00","adjustment_false_positives":0,"adjustment_false_negatives":0,"adjustment_fp_rate":0.0,"adjustment_fn_rate":0.0,"adjustments_with_wrong_amount":0,"abstention_needed":5,"correct_abstentions":5,"false_abstentions":0,"citation_coverage":1.0,"must_cite_recall":1.0,"narrative_claims":82,"unsupported_claims_dropped":0,"unsupported_claim_rate_in_output":0.0,"reproducibility":1.0,"latency_ms_p50":3.06,"latency_ms_max":6.05,"model_calls_by_model":{"deterministic-fallback":50}},"baseline":{"cases":25,"decision_accuracy":0.44,"decisions_correct":11,"status_accuracy":0.8,"action_accuracy":0.52,"money_cases":20,"money_exact":11,"money_mean_abs_error":"835.00","money_max_abs_error":"4000.00","adjustment_false_positives":10,"adjustment_false_negatives":1,"adjustment_fp_rate":0.5882,"adjustment_fn_rate":0.125,"adjustments_with_wrong_amount":2,"abstention_needed":5,"correct_abstentions":0,"false_abstentions":0,"citation_coverage":0.0,"note":"Rules-only baseline: CRM amount x split x rate - all payroll lines; no evidence, identity, timing or conflict checks; no citations."},"safety":{"forced_postcondition_failures":25,"receipts_issued_despite_failed_postcondition":0,"unauthorized_attempts":151,"unauthorized_actions_succeeded":0,"duplicate_execution_requests":125,"duplicate_actions_created":0,"actions_verified":25,"audit_chain_valid":true,"stale_evidence_scenarios":8,"stale_executions_blocked":8,"injected_failures":8,"failures_reported_honestly":8},"approval_limits":{"finance_approver":"5000.00","controller":"50000.00"},"demo":{"case_id":"CASE-1001","title":"Northwind Logistics \u2014 $3,000 shortfall claim","claimed":"3000.00","due":"4300.00","paid":"3200.00","delta":"1100.00","proof_status":"VERIFIED","verdict":"PARTIALLY_SUPPORTED","waterfall":[{"label":"Claimant expectation: CRM amount x split x rate","amount":"6000.00","kind":"start","cites":["OPP-5521","SPL-5521-1"]},{"label":"Eligible contract value differs from CRM amount (P-3.1)","amount":"-1000.00","kind":"step","cites":["CTR-3301","AMD-3301-1"]},{"label":"Collection basis: only net cash collected by cutoff is commissionable (P-3.2)","amount":"-700.00","kind":"step","cites":["INV-8801","PAY-44120","PAY-44987","CN-0077"]},{"label":"Verified commission due","amount":"4300.00","kind":"subtotal","cites":[]},{"label":"Paid: commission PL-20260531-118 (Q2 commission on collected cash)","amount":"-3600.00","kind":"step","cites":["PL-20260531-118"]},{"label":"Paid: clawback PL-20260630-041 (Clawback CN-0077)","amount":"200.00","kind":"step","cites":["PL-20260630-041"]},{"label":"Paid: clawback PL-20260630-042 (Clawback CN-0077 (re-import))","amount":"200.00","kind":"step","cites":["PL-20260630-042"]},{"label":"Verified variance (due - paid)","amount":"1100.00","kind":"total","cites":[]}],"counterfactuals":[{"title":"Territory split misattributed (50/50 with U-91)","due":"2150.00","delta_change":"-2150.00"},{"title":"Use system-recorded dates instead of value dates","due":"3400.00","delta_change":"-900.00"},{"title":"Invoice INV-8801 paid in full before cutoff","due":"4800.00","delta_change":"500.00"},{"title":"Credit note CN-0077 issued after cutoff","due":"4500.00","delta_change":"200.00"},{"title":"Duplicate payroll line PL-20260630-042 removed","due":"4300.00","delta_change":"-200.00"}],"strongest":{"title":"PAY-44987 was recorded 2026-07-03, after the cutoff","detail":"Value date 2026-06-10 is before cutoff. If recording date governed, it would be excluded. P-4.2 says value date governs, so it is included.","impact":"-900.00","rule":"P-4.2"},"action":{"type":"PREPARE_PAYROLL_ADJUSTMENT","amount":"1100.00","required_permission":"finance_approver"}},"tests":53}
+</script>
+<script>
+  // Numbers are never typed into this deck. They come from the embedded block (rewritten by every
+  // `python3 -m payproof.bench` run) and, when served by the app at /deck, from the live API.
+  const $id = (i) => document.getElementById(i);
+  const esc = (v) => String(v ?? "").replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
+  const money = (v) => v === null || v === undefined ? "—" : (Number(v) < 0 ? "−$" : "$") + Math.abs(Number(v)).toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+  const signed = (v) => v === null || v === undefined ? "—" : (Number(v) > 0 ? "+" : "") + money(v);
+  const pct = (x) => (x * 100).toFixed(0) + "%";
+  function fill(d) {
+    const m = d.demo;
+    $id("d-demo-k").textContent = `Demo case · ${m.case_id}`;
+    $id("d-demo-title").textContent = `Claimed ${money(m.claimed)}. Verified ${money(m.delta)}.`;
+    $id("d-waterfall").innerHTML = (m.waterfall || []).map((r) => r.kind === "step"
+      ? `<tr><td>${esc(r.label)}</td><td class="num ${Number(r.amount) < 0 ? "bad" : "ok"}">${signed(r.amount)}</td></tr>`
+      : `<tr><th>${esc(r.label)}</th><th class="num ${r.kind === "total" ? "ok" : ""}">${money(r.amount)}</th></tr>`).join("");
+    $id("d-strongest").textContent = m.strongest ? `“${m.strongest.title}.” If true, variance ${signed(m.strongest.impact)}. Tested by replay and ruled on under ${m.strongest.rule || "the plan"}.` : "No falsifying evidence found.";
+    $id("d-cf").innerHTML = `<tr><th>Hypothetical scenario</th><th class="num">Due</th><th class="num">Δ variance</th></tr>` +
+      m.counterfactuals.map((c) => `<tr><td>${esc(c.title)}</td><td class="num">${money(c.due)}</td><td class="num ${Number(c.delta_change) < 0 ? "bad" : Number(c.delta_change) > 0 ? "ok" : ""}">${signed(c.delta_change)}</td></tr>`).join("");
+    $id("d-limit").textContent = money(d.approval_limits.finance_approver);
+    $id("d-due").textContent = money(m.due);
+    if (d.tests) $id("d-tests").textContent = d.tests;
+    $id("d-cases").textContent = d.sample_size;
+    const a = d.agent, b = d.baseline, s = d.safety;
+    $id("d-eval-title").textContent = `${d.sample_size} hand-labelled synthetic cases`;
+    const row = (k, x, y) => `<tr><td>${esc(k)}</td><td class="num">${esc(x)}</td><td class="num">${esc(y)}</td></tr>`;
+    $id("d-eval").innerHTML = `<tr><th>Metric</th><th class="num">PayProof</th><th class="num">Rules-only baseline</th></tr>` +
+      row("Decision accuracy (incl. amount when money moves)", `${a.decisions_correct}/${a.cases}`, `${b.decisions_correct}/${b.cases}`) +
+      row("Wrong payroll adjustments recommended", a.adjustment_false_positives, b.adjustment_false_positives) +
+      row("Correct abstention when evidence is missing or contradictory", `${a.correct_abstentions}/${a.abstention_needed}`, `${b.correct_abstentions}/${b.abstention_needed}`) +
+      row("Citation coverage of material claims", pct(a.citation_coverage), pct(b.citation_coverage)) +
+      row("Unauthorized actions succeeded / attempts", `${s.unauthorized_actions_succeeded} / ${s.unauthorized_attempts}`, "n/a") +
+      row(`Duplicate actions from ${s.duplicate_execution_requests} concurrent re-executions`, s.duplicate_actions_created, "n/a") +
+      row("Stale-evidence executions blocked", `${s.stale_executions_blocked} / ${s.stale_evidence_scenarios}`, "n/a") +
+      row("Forced postcondition failures that still produced a receipt", `${s.receipts_issued_despite_failed_postcondition} / ${s.forced_postcondition_failures}`, "n/a");
+    const models = Object.keys(a.model_calls_by_model || {});
+    $id("d-eval-note").textContent = `Generated ${d.generated_at}. Limitations: the cases and the engine were written by the same team, so these results show policy fidelity, not generalisation. The baseline is a transparent strawman. Model calls in this run: ${models.join(", ") || "none"}` +
+      (models.every((x) => x === "deterministic-fallback") ? " — no live-model results." : ".");
+  }
+  const embedded = JSON.parse($id("deck-data").textContent || "{}");
+  if (embedded.demo) fill(embedded);
+  if (location.protocol.startsWith("http")) {
+    const h = { headers: { "X-Demo-User": "ana" } };
+    Promise.all([fetch("/api/benchmark", h).then((r) => r.ok ? r.json() : null), fetch(`/api/cases/${embedded.demo?.case_id || "CASE-1001"}`, h).then((r) => r.ok ? r.json() : null)])
+      .then(([bench, demo]) => {
+        if (!bench || !demo) return;
+        if (demo.verdict === "SETTLED") return fill({ ...embedded, ...bench });  // keep the pre-settlement demo snapshot
+        const c = demo.calculation, st = demo.skeptic.findings.find((f) => f.id === demo.skeptic.strongest);
+        fill({ ...embedded, ...bench, demo: { case_id: demo.case_id, claimed: demo.dispute.claimed_shortfall, due: c.due, paid: c.paid, delta: c.delta,
+          waterfall: demo.hypothesis.waterfall, counterfactuals: demo.counterfactuals.slice(0, 5), strongest: st || null } });
+      }).catch(() => {});
+  }
+</script>
 <script>
   const s = [...document.querySelectorAll(".slide")]; let i = 0;
   const show = (k) => { i = Math.max(0, Math.min(s.length - 1, k)); s.forEach((x, j) => x.classList.toggle("on", j === i)); document.getElementById("n").textContent = `${i + 1} / ${s.length}`; };

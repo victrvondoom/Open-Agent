@@ -252,6 +252,8 @@ def run(case_ids, write=True):
         out.mkdir(parents=True, exist_ok=True)
         (out / "latest.json").write_text(json.dumps(report, indent=2, default=str) + "\n")
         (ROOT / "docs" / "BENCHMARK.md").write_text(markdown(report))
+        from .report import write_generated_docs
+        write_generated_docs(report)  # deck + README numbers come from this run, never typed by hand
     return report
 
 
@@ -297,7 +299,8 @@ def markdown(r):
 
 def main():
     smoke = "--smoke" in sys.argv
-    ids = SMOKE if smoke else LocalFixtureSource().list_case_ids()
+    gt = json.loads((ROOT / "bench" / "ground_truth.json").read_text())["cases"]
+    ids = SMOKE if smoke else sorted(gt)  # benchmark = hand-labelled cases only, never user-filed ones
     r = run(ids, write=not smoke)
     a, b, s = r["agent"], r["baseline"], r["safety"]
     print(f"cases={r['sample_size']}  agent accuracy={a['decisions_correct']}/{a['cases']}  baseline accuracy={b['decisions_correct']}/{b['cases']}")

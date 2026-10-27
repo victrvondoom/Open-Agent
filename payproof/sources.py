@@ -30,6 +30,7 @@ from pathlib import Path
 
 ROOT = Path(__file__).resolve().parent.parent
 CASES_DIR = ROOT / "data" / "cases"
+USER_CASES_DIR = ROOT / "var" / "cases"  # disputes filed at runtime through intake
 PLANS_PATH = ROOT / "data" / "plans.json"
 
 
@@ -49,20 +50,27 @@ class LocalFixtureSource:
     name = "local-fixtures"
     live = False
 
-    def __init__(self, cases_dir: Path = CASES_DIR):
-        self.cases_dir = cases_dir
+    def __init__(self, cases_dir: Path = CASES_DIR, user_dir: Path | None = USER_CASES_DIR):
+        self.cases_dir, self.user_dir = cases_dir, user_dir
         self._overlays: dict[str, list[dict]] = {}
 
+    def _dirs(self):
+        return [d for d in (self.cases_dir, self.user_dir) if d is not None]
+
     def list_case_ids(self):
-        return sorted(p.stem for p in self.cases_dir.glob("CASE-*.json"))
+        return sorted({p.stem for d in self._dirs() if d.exists() for p in d.glob("CASE-*.json")})
+
+    def is_user_case(self, case_id: str) -> bool:
+        return self.user_dir is not None and (self.user_dir / f"{case_id}.json").exists()
 
     def _base(self, case_id: str) -> dict:
-        if not case_id.replace("-", "").isalnum():
+        if not re.fullmatch(r"CASE-\d{4}", case_id or ""):
             raise KeyError(case_id)
-        path = self.cases_dir / f"{case_id}.json"
-        if not path.exists():
-            raise KeyError(case_id)
-        return json.loads(path.read_text())
+        for d in self._dirs():
+            path = d / f"{case_id}.json"
+            if path.exists():
+                return json.loads(path.read_text())
+        raise KeyError(case_id)
 
     def load_case(self, case_id: str) -> dict:
         case = self._base(case_id)
@@ -158,6 +166,7 @@ class ZetarisSource(LocalFixtureSource):
             with urllib.request.urlopen(req, timeout=self.timeout_s) as resp:
                 out = json.loads(resp.read().decode() or "null")
         except urllib.error.HTTPError as e:
+            e.close()
             raise ZetarisError(f"HTTP {e.code}") from e  # body not echoed: may contain request details
         except (urllib.error.URLError, OSError, TimeoutError) as e:
             raise ZetarisError(f"unreachable ({type(e).__name__})") from e

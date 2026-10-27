@@ -7,25 +7,33 @@ import json
 import os
 import re
 import sys
+import threading
 import time
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from pathlib import Path
-from urllib.parse import urlparse
+from urllib.parse import parse_qs, urlparse
 
 from .actions import USERS, ActionError, ActionService, late_credit_note
 from .integrations import integration_status
+from .intake import IntakeError, create_case, template_from_case
 from .sources import make_source, load_plans
 
 ROOT = Path(__file__).resolve().parent.parent
 WEB = ROOT / "web"
-MIME = {".html": "text/html; charset=utf-8", ".js": "text/javascript", ".css": "text/css", ".svg": "image/svg+xml"}
+DOCS = ROOT / "docs"
+STATIC_ROOTS = {"/deck": DOCS / "deck.html"}  # exact paths
+STATIC_DIRS = {"/img/": DOCS / "img"}  # prefixes
+MIME = {".html": "text/html; charset=utf-8", ".js": "text/javascript", ".css": "text/css", ".svg": "image/svg+xml",
+        ".png": "image/png", ".pdf": "application/pdf", ".mp4": "video/mp4"}
+BENCH_LOCK = threading.Lock()
 
 
 class App:
-    def __init__(self):
-        self.source = make_source()
+    def __init__(self, source=None, audit_path="default"):
+        self.source = source or make_source()
         self.plans = load_plans()
-        self.svc = ActionService(self.source, self.plans)
+        self.svc = ActionService(self.source, self.plans) if audit_path == "default" else \
+            ActionService(self.source, self.plans, audit_path=audit_path)
         self.cache = {}
 
     def investigation(self, case_id):
@@ -47,7 +55,8 @@ class App:
                         "exposure": f"{exposure:.2f}", "proof_status": r["proof_status"], "verdict": r["verdict"],
                         "action": r["proposed_action"]["type"], "action_state": acts[-1]["state"] if acts else None,
                         "filed_at": r["dispute"]["filed_at"], "tags": r["tags"]})
-        out.sort(key=lambda x: (0 if "demo" in x["tags"] else 1, -float(x["exposure"])))
+        out.sort(key=lambda x: (0 if "demo" in x["tags"] else 1 if "user-filed" in x["tags"] else 2,
+                                -int(x["case_id"][5:]) if "user-filed" in x["tags"] else 0, -float(x["exposure"])))
         return out
 
 
@@ -180,12 +189,50 @@ def make_handler(app: App):
             if method == "GET" and path == "/api/benchmark":
                 p = ROOT / "bench" / "results" / "latest.json"
                 return (200, json.loads(p.read_text())) if p.exists() else (404, {"error": "run python3 -m payproof.bench"})
+            if method == "POST" and path == "/api/benchmark/run":
+                u = self._viewer()
+                if "benchmark.run" not in u["perms"]:
+                    raise ActionError("FORBIDDEN", f"role {u['role']} cannot run the benchmark", 403)
+                if not BENCH_LOCK.acquire(blocking=False):
+                    raise ActionError("BUSY", "a benchmark run is already in progress", 409)
+                try:
+                    from .bench import run as run_bench
+                    gt = json.loads((ROOT / "bench" / "ground_truth.json").read_text())["cases"]
+                    report = run_bench(sorted(gt), write=True)
+                finally:
+                    BENCH_LOCK.release()
+                app.svc.audit.append("BENCHMARK_RUN", u["id"], cases=report["sample_size"],
+                                     correct=report["agent"]["decisions_correct"])
+                return 200, report
+            if method == "GET" and path == "/api/intake/template":
+                self._viewer()
+                q = parse_qs(urlparse(self.path).query)
+                base = q.get("from", [app.source.list_case_ids()[0]])[0]
+                return 200, {"from": base, "form": template_from_case(app.source.load_case(base))}
+            if method == "POST" and path == "/api/cases":
+                u = self._viewer()
+                if "case.file" not in u["perms"]:
+                    raise ActionError("FORBIDDEN", f"role {u['role']} cannot file disputes", 403)
+                try:
+                    case = create_case(self._body(), set(app.source.list_case_ids()), directory=app.source.user_dir)
+                except IntakeError as e:
+                    raise ActionError("INVALID_INPUT", str(e), 422)
+                app.svc.audit.append("CASE_FILED", u["id"], case_id=case["case_id"],
+                                     claimed=case["dispute"]["claimed_shortfall"])
+                r = app.svc.investigate(case["case_id"], use_model=False)
+                return 201, {"case_id": case["case_id"], "proof_status": r["proof_status"], "verdict": r["verdict"],
+                             "action": r["proposed_action"]["type"], "due": r["calculation"]["due"] if r["proof_status"] == "VERIFIED" else None}
             return 404, {"error": "not found"}
 
         def _static(self, path):
-            rel = "index.html" if path in ("/", "") else path.lstrip("/")
-            f = (WEB / rel).resolve()
-            if not str(f).startswith(str(WEB.resolve())) or not f.is_file():
+            base, rel = WEB, ("index.html" if path in ("/", "") else path.lstrip("/"))
+            if path in STATIC_ROOTS:
+                base, rel = STATIC_ROOTS[path].parent, STATIC_ROOTS[path].name
+            for prefix, d in STATIC_DIRS.items():
+                if path.startswith(prefix):
+                    base, rel = d, path[len(prefix):]
+            f = (base / rel).resolve()
+            if not str(f).startswith(str(base.resolve()) + os.sep) or not f.is_file():
                 return 404, {"error": "not found"}
             return 200, (f.read_bytes(), MIME.get(f.suffix, "application/octet-stream"))
 
@@ -215,6 +262,10 @@ def make_handler(app: App):
             self._handle("POST")
 
     return H
+
+
+def make_server(app: App, host="127.0.0.1", port=0) -> ThreadingHTTPServer:
+    return ThreadingHTTPServer((host, port), make_handler(app))
 
 
 def main():

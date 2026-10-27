@@ -14,7 +14,7 @@ import threading
 from datetime import datetime, timedelta, timezone
 from pathlib import Path
 
-from .money import D, fmt
+from .money import D
 from .sources import sha
 from . import world_model as wm
 from .llm import ModelClient
@@ -22,14 +22,16 @@ from .workflow import investigate, source_fingerprint
 
 ROOT = Path(__file__).resolve().parent.parent
 
-USERS = {
-    # token -> user. Demo-only authentication: synthetic users selected via X-Demo-User.
-    "ana": {"id": "ANALYST-1", "name": "Ana Lopez", "role": "analyst", "perms": {"case.view", "action.propose"}},
-    "fin": {"id": "FIN-APPROVER-1", "name": "Farah Iqbal", "role": "finance_approver", "perms": {"case.view", "action.approve"}},
-    "ctl": {"id": "CONTROLLER-1", "name": "Chris Lund", "role": "controller", "perms": {"case.view", "action.approve", "action.execute"}},
-    "ops": {"id": "PAYROLL-OPS-1", "name": "Oskar Pohl", "role": "payroll_ops", "perms": {"case.view", "action.execute"}},
-    "rep": {"id": "E-1042", "name": "Maya Chen", "role": "sales_rep", "perms": {"case.view_own"}},
-}
+USERS_PATH = ROOT / "data" / "users.json"
+
+
+def load_users(path: Path = USERS_PATH) -> dict:
+    """token -> user. Demo-only authentication: synthetic users selected via X-Demo-User."""
+    raw = json.loads(path.read_text())["users"]
+    return {t: {**u, "perms": set(u["perms"])} for t, u in raw.items()}
+
+
+USERS = load_users()
 ROLE_LIMIT_KEY = {"finance_approver": "finance_approver", "controller": "controller"}
 ROLE_RANK = {"finance_approver": 1, "controller": 2}
 

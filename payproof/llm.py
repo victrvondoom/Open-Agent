@@ -23,7 +23,7 @@ import urllib.request
 
 MAX_CALLS_PER_RUN = 2
 NVIDIA_BASE_URL = "https://integrate.api.nvidia.com/v1"  # organizer troubleshooting guide, section 7.3
-# Copy the exact id from the model page on build.nvidia.com; verify with `python3 run.py --verify-model`.
+# Copy the exact id from the model page on build.nvidia.com; verify with `python3 run.py --check-integrations`.
 DEFAULT_MODEL = "nvidia/nemotron-3-ultra-550b-a55b"
 
 # Runtime truth: LIVE only after a real completion from the configured endpoint succeeded in this process.
@@ -53,6 +53,7 @@ def verify_model(cfg=None) -> dict:
         with urllib.request.urlopen(req, timeout=float(os.environ.get("LLM_TIMEOUT_S", "25"))) as resp:
             ids = [m.get("id") for m in json.loads(resp.read()).get("data", [])]
     except urllib.error.HTTPError as e:
+        e.close()
         return {"ok": False, "reason": f"HTTP {e.code} from /models"}
     except (urllib.error.URLError, OSError, ValueError) as e:
         return {"ok": False, "reason": f"{type(e).__name__} contacting /models"}
@@ -118,6 +119,8 @@ class ModelClient:
             result = [{"text": str(c.get("text", ""))[:400], "cites": [str(x) for x in c.get("cites", [])][:8], "origin": "model"}
                       for c in claims[:4] if isinstance(c, dict)]
         except Exception as exc:
+            if isinstance(exc, urllib.error.HTTPError):
+                exc.close()
             code = getattr(exc, "code", None)
             meta.update(status="error_fallback", error=f"{type(exc).__name__}{f' {code}' if code else ''}")
             _STATUS.update(last_error=meta["error"])

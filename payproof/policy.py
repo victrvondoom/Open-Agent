@@ -191,6 +191,12 @@ def compute(index, plans: dict, identity: dict, scenario: Scenario | None = None
 
     # P-4.1 / P-5.1 rate
     version = next((pv for pv in plans["versions"] if pv["effective_from"] <= opp["close_date"] <= pv["effective_to"]), None)
+    if version is None:
+        blockers.append({"code": "NO_PLAN_VERSION", "detail": f"No {plans['plan_id']} version covers close date {opp['close_date']}",
+                         "cites": [opp["id"]]})
+        paid, pl_cites = _paid(v, dispute)
+        step("paid", "Commission already paid", "PAYROLL", fmt(paid), pl_cites, formula="sum(posted payroll lines)")
+        return _result(s, steps, conflicts, blockers, None, paid)
     rate = D(version["rate"])
     rate_cites, rate_formula, rate_excl = [version["id"], opp["id"]], f"{version['id']} rate {version['rate']} (close {opp['close_date']})", []
     for e in v.of_type("policy_exception"):

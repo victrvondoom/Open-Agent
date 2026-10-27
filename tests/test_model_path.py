@@ -44,6 +44,7 @@ class ModelPathTests(unittest.TestCase):
 
     def tearDown(self):
         self.srv.shutdown()
+        self.srv.server_close()
         os.environ.pop("LLM_BASE_URL", None)
         llm._CACHE.clear()
         llm._STATUS.clear(); llm._STATUS.update(self.status_before)  # a stub must never leave the client looking live

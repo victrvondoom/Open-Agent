@@ -1,0 +1,53 @@
+{
+  "_note": "Synthetic demo users selected via the X-Demo-User header. Demo-only authentication; edit to add roles/users.",
+  "users": {
+    "ana": {
+      "id": "ANALYST-1",
+      "name": "Ana Lopez",
+      "role": "analyst",
+      "perms": [
+        "action.propose",
+        "benchmark.run",
+        "case.file",
+        "case.view"
+      ]
+    },
+    "fin": {
+      "id": "FIN-APPROVER-1",
+      "name": "Farah Iqbal",
+      "role": "finance_approver",
+      "perms": [
+        "action.approve",
+        "case.view"
+      ]
+    },
+    "ctl": {
+      "id": "CONTROLLER-1",
+      "name": "Chris Lund",
+      "role": "controller",
+      "perms": [
+        "action.approve",
+        "action.execute",
+        "benchmark.run",
+        "case.view"
+      ]
+    },
+    "ops": {
+      "id": "PAYROLL-OPS-1",
+      "name": "Oskar Pohl",
+      "role": "payroll_ops",
+      "perms": [
+        "action.execute",
+        "case.view"
+      ]
+    },
+    "rep": {
+      "id": "E-1042",
+      "name": "Maya Chen",
+      "role": "sales_rep",
+      "perms": [
+        "case.view_own"
+      ]
+    }
+  }
+}
