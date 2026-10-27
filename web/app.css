@@ -25,8 +25,10 @@ select { font: inherit; background: #172235; color: var(--text); border: 1px sol
 .user { color: var(--dim); display: flex; gap: 8px; align-items: center; }
 .chips { display: flex; gap: 6px; flex-wrap: wrap; }
 .chip { font-size: 11px; padding: 3px 8px; border-radius: 999px; border: 1px solid var(--line); color: var(--dim); white-space: nowrap; }
-.chip.live { color: var(--verified); border-color: #1f5f49; }
-.chip.fallback { color: var(--warn); border-color: #5f4a1f; }
+.chip.st-LIVE { color: var(--verified); border-color: #1f5f49; background: #0e2a22; }
+.chip.st-CONFIGURED_UNVERIFIED { color: var(--accent2); border-color: #284a78; }
+.chip.st-FALLBACK { color: var(--warn); border-color: #5f4a1f; }
+.chip.st-UNAVAILABLE { color: var(--bad); border-color: #6b2a35; }
 .layout { display: grid; grid-template-columns: 330px 1fr; min-height: calc(100vh - 64px); }
 .queue { border-right: 1px solid var(--line); background: var(--panel2); overflow-y: auto; max-height: calc(100vh - 64px); position: sticky; top: 64px; }
 .queue-head { display: flex; justify-content: space-between; align-items: baseline; padding: 14px 16px 6px; }

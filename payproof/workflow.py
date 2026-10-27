@@ -393,6 +393,8 @@ def investigate(case: dict, plans: dict, ledger: list | None = None, model: Mode
     # Meterless World Model: canonical, provenance-stamped, bitemporal evidence state.
     world = wm.WorldModel(namespace=case["case_id"])
     wm_ingest = wm.ingest_case(world, case, run_id)
+    from .integrations import record_world_model_ingest
+    record_world_model_ingest()
     wm_check = world_model_cross_check(world, wm_ingest["ids"], index, calc, cutoff)
 
     hypo = investigator(index, calc, identity)

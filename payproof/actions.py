@@ -17,6 +17,7 @@ from pathlib import Path
 from .money import D, fmt
 from .sources import sha
 from . import world_model as wm
+from .llm import ModelClient
 from .workflow import investigate, source_fingerprint
 
 ROOT = Path(__file__).resolve().parent.parent
@@ -127,10 +128,11 @@ class ActionService:
             raise ActionError("UNAUTHENTICATED", "unknown or missing user", 401)
         return u
 
-    def investigate(self, case_id):
+    def investigate(self, case_id, use_model: bool = True):
         case = self.source.load_case(case_id)
         d = case["dispute"]
-        return investigate(case, self.plans, ledger=self.adapter.ledger_for(d["employee_id"], d["opportunity_id"]))
+        return investigate(case, self.plans, ledger=self.adapter.ledger_for(d["employee_id"], d["opportunity_id"]),
+                           model=ModelClient(enabled=None if use_model else False))
 
     def _move(self, a, to, actor, **details):
         if to not in TRANSITIONS[a["state"]]:
@@ -170,7 +172,7 @@ class ActionService:
             self.audit.append("DENIED", u["id"], op="propose", case_id=case_id)
             raise ActionError("FORBIDDEN", f"role {u['role']} cannot propose actions", 403)
         with self.lock:
-            inv = self.investigate(case_id)
+            inv = self.investigate(case_id, use_model=False)
             pa = inv["proposed_action"]
             for a in self.actions.values():
                 if a["idempotency_key"] == pa["idempotency_key"] and a["state"] not in {"REJECTED", "EXPIRED"}:
@@ -249,18 +251,27 @@ class ActionService:
             if stale := self._stale(a):
                 self._move(a, "EXPIRED", "SYSTEM", reason=f"STALE_EVIDENCE at execution: {stale}")
                 raise ActionError("STALE_EVIDENCE", "source records changed after approval; action expired", 409)
-            current = self.investigate(a["case_id"])
-            if current["calculation"]["paid"] != a["preconditions"]["expected_paid_before"]:
-                self._move(a, "FAILED", "SYSTEM", reason="precondition: paid total changed")
+            already_written = any(r["idempotency_key"] == a["idempotency_key"] for r in self.adapter.ledger + self.adapter.tickets)
+            current = self.investigate(a["case_id"], use_model=False)
+            if not already_written and current["calculation"]["paid"] != a["preconditions"]["expected_paid_before"]:
+                if a["state"] != "FAILED":
+                    self._move(a, "FAILED", "SYSTEM", reason="precondition: paid total changed")
                 raise ActionError("PRECONDITION_FAILED", "paid total changed since approval", 409)
             try:
                 row, created = self.adapter.apply(a)
             except RuntimeError as exc:
-                self._move(a, "FAILED", "SYSTEM", reason=str(exc))
+                if a["state"] != "FAILED":
+                    self._move(a, "FAILED", "SYSTEM", reason=str(exc))
                 raise ActionError("EXECUTION_FAILED", str(exc), 502)
             self._move(a, "EXECUTED", u["id"], adapter_row=row["id"], created=created)
             post = self.verify_postcondition(a, row)
-            self._move(a, "VERIFIED" if post["passed"] else "FAILED", "SYSTEM", postcondition=post["passed"])
+            if not post["passed"]:
+                # A failed postcondition never yields a receipt; it is recorded as a failure instead.
+                self._move(a, "FAILED", "SYSTEM", reason="postcondition failed", postcondition=False)
+                a["receipt"] = None
+                a["failure"] = {"adapter_record": row["id"], "postcondition": post, "audit_seq": self.audit.entries[-1]["seq"]}
+                raise ActionError("POSTCONDITION_FAILED", "simulated state does not match the expected result; no receipt issued", 500)
+            self._move(a, "VERIFIED", "SYSTEM", postcondition=True)
             last = self.audit.entries[-1]
             a["receipt"] = {
                 "receipt_id": "RCPT-" + sha([a["id"], row["id"]])[:12], "action_id": a["id"], "type": a["type"],
@@ -276,7 +287,7 @@ class ActionService:
     def verify_postcondition(self, a, row):
         """Independent re-read of the simulated system state after execution."""
         if a["type"] == "PREPARE_PAYROLL_ADJUSTMENT":
-            after = self.investigate(a["case_id"])
+            after = self.investigate(a["case_id"], use_model=False)
             calc = after["calculation"]
             ok = calc["paid"] == a["preconditions"]["expected_due"] and D(calc["delta"]) == 0
             return {"passed": ok, "check": "re-investigated payout: paid == expected due and variance == 0",

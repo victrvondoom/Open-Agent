@@ -1,9 +1,15 @@
 """Source-system adapters.
 
-`LocalFixtureSource` reads synthetic snapshots from data/cases (the default and the
-only adapter exercised by tests). `ZetarisSource` runs a fixed allowlist of
-parameterised federated SQL templates against a Zetaris endpoint; it is used only
-when ZETARIS_URL is set and is NOT verified against a live Zetaris instance.
+`LocalFixtureSource` reads synthetic snapshots from data/cases (the default; SAMPLE_MODE).
+`ZetarisSource` reads the same records through Zetaris's documented direct REST SQL route
+(zetaris/getting-started, scripts/zetaris_sql.py RestChannel):
+
+    POST {ZETARIS_REST_URL}/sql-editor/sqls/run          # REST URL ends in /api/v1.0
+    Authorization: Bearer {ZETARIS_API_KEY}; X-Org-ID: {ZETARIS_ORG_ID}; X-Request-ID: uuid4
+    {"queryId": uuid4, "sql": ..., "source": "SqlEditor", "limit": N}  ->  {"data": [[...], ...]}
+
+It is enabled only when ZETARIS_REST_URL is set. Whether it has worked is reported at
+runtime by `zetaris_status()`; it has not been run against a live Zetaris in this repo.
 
 Either adapter returns the same shape: {case_id, dispute, feeds, sources{system: {system, records}}}.
 Late-arriving events (stale-evidence simulation) are layered on top without
@@ -14,7 +20,12 @@ import copy
 import hashlib
 import json
 import os
+import re
+import time
+import urllib.error
+import urllib.parse
 import urllib.request
+import uuid
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parent.parent
@@ -69,58 +80,118 @@ class LocalFixtureSource:
         self._overlays.clear()
 
 
-# Allowlisted federated queries. Only these templates may be sent to Zetaris and only
-# the named parameter (:case_key) is bound — no model-generated SQL is ever executed.
-ZETARIS_QUERIES = {
-    "hris": "SELECT * FROM hris_sim.employees WHERE case_key = :case_key",
-    "crm": "SELECT * FROM crm_sim.records WHERE case_key = :case_key",
-    "clm": "SELECT * FROM clm_sim.records WHERE case_key = :case_key",
-    "billing": "SELECT * FROM billing_sim.records WHERE case_key = :case_key",
-    "comp": "SELECT * FROM comp_sim.records WHERE case_key = :case_key",
-    "payroll": "SELECT * FROM payroll_sim.records WHERE case_key = :case_key",
-}
+# Fixed SQL templates. The direct REST route accepts SQL text (no bind parameters are
+# documented), so the only interpolated values are validated against strict patterns:
+# the database name ([A-Za-z_][A-Za-z0-9_]*) and the case key (CASE-\d{4}). Nothing a
+# user or a model writes ever reaches the SQL text.
+SYSTEMS = ("hris", "crm", "clm", "billing", "comp", "payroll")
+SQL_TEMPLATE = ("SELECT record_id, record_type, payload_json FROM {db}.{system}_records "
+                "WHERE case_key = '{case_key}' ORDER BY record_id")
+CASE_KEY_RE = re.compile(r"CASE-\d{4}")
+IDENT_RE = re.compile(r"[A-Za-z_][A-Za-z0-9_]*")
+
+_ZETARIS_STATUS = {"last_ok_at": None, "last_error": None, "systems_served": [], "rows": 0, "url_host": None}
+
+
+def zetaris_status():
+    return dict(_ZETARIS_STATUS)
+
+
+class ZetarisError(RuntimeError):
+    pass
+
+
+def build_sql(db: str, system: str, case_key: str) -> str:
+    if system not in SYSTEMS:
+        raise ZetarisError(f"system {system!r} not allowlisted")
+    if not IDENT_RE.fullmatch(db):
+        raise ZetarisError("ZETARIS_DATABASE must be a plain identifier")
+    if not CASE_KEY_RE.fullmatch(case_key):
+        raise ZetarisError("invalid case key")
+    return SQL_TEMPLATE.format(db=db, system=system, case_key=case_key)
+
+
+def map_rows(system: str, rows) -> list[dict]:
+    """Map Zetaris rows back into the source-record model, preserving record ids."""
+    out = []
+    for row in rows or []:
+        if isinstance(row, dict):
+            rid, rtype, payload = row.get("record_id"), row.get("record_type"), row.get("payload_json")
+        elif isinstance(row, (list, tuple)) and len(row) == 3:
+            rid, rtype, payload = row
+        else:
+            raise ZetarisError(f"{system}: unexpected row shape")
+        rec = json.loads(payload) if isinstance(payload, str) else payload
+        if not isinstance(rec, dict) or rec.get("id") != rid or rec.get("type") != rtype:
+            raise ZetarisError(f"{system}: row {rid!r} payload does not match its record_id/record_type")
+        out.append(rec)
+    return out
 
 
 class ZetarisSource(LocalFixtureSource):
-    """Federated source via Zetaris. Falls back to fixtures per system on error, and
-    records which systems were actually served by Zetaris (`provenance`)."""
+    """Per-system federated read through Zetaris with honest per-system provenance.
+    A system whose query fails or times out falls back to the local fixture and is labelled
+    `fixture-fallback (<reason>)`. A query that succeeds with zero rows is a real answer
+    (e.g. no policy exceptions) and is labelled `zetaris (0 rows)`."""
 
     name = "zetaris"
 
-    def __init__(self, url: str, token: str | None):
+    def __init__(self, rest_url: str, api_key: str, org_id: str, database: str = "payproof", timeout_s: float = 15):
         super().__init__()
-        self.url = url.rstrip("/")
-        self.token = token
+        if not re.fullmatch(r"https?://[^\s]+", rest_url):
+            raise ZetarisError("ZETARIS_REST_URL must be an http(s) URL ending in /api/v1.0")
+        if not org_id or not org_id.isdigit():
+            raise ZetarisError("ZETARIS_ORG_ID must be the numeric organisation ID")
+        if not api_key:
+            raise ZetarisError("ZETARIS_API_KEY is required")
+        self.rest_url, self.org_id, self.database, self.timeout_s = rest_url.rstrip("/"), org_id, database, timeout_s
+        self._key = api_key
         self.live = True
+        _ZETARIS_STATUS["url_host"] = urllib.parse.urlparse(self.rest_url).netloc
 
-    def _query(self, system: str, case_id: str):
-        body = json.dumps({"sql": ZETARIS_QUERIES[system], "params": {"case_key": case_id}}).encode()
-        req = urllib.request.Request(self.url + "/query", data=body, method="POST",
-                                     headers={"Content-Type": "application/json",
-                                              **({"Authorization": f"Bearer {self.token}"} if self.token else {})})
-        with urllib.request.urlopen(req, timeout=10) as resp:
-            payload = json.loads(resp.read())
-        rows = payload.get("rows")
-        if not isinstance(rows, list):
-            raise ValueError("unexpected Zetaris response shape")
-        return rows
+    def run_sql(self, sql: str, limit: int = 500):
+        body = json.dumps({"queryId": str(uuid.uuid4()), "sql": sql, "source": "SqlEditor", "limit": limit}).encode()
+        req = urllib.request.Request(self.rest_url + "/sql-editor/sqls/run", data=body, method="POST", headers={
+            "Authorization": f"Bearer {self._key}", "X-Org-ID": self.org_id, "X-Request-ID": str(uuid.uuid4()),
+            "Content-Type": "application/json"})
+        try:
+            with urllib.request.urlopen(req, timeout=self.timeout_s) as resp:
+                out = json.loads(resp.read().decode() or "null")
+        except urllib.error.HTTPError as e:
+            raise ZetarisError(f"HTTP {e.code}") from e  # body not echoed: may contain request details
+        except (urllib.error.URLError, OSError, TimeoutError) as e:
+            raise ZetarisError(f"unreachable ({type(e).__name__})") from e
+        if not isinstance(out, dict) or not isinstance(out.get("data"), list):
+            raise ZetarisError("response has no data array")
+        return out["data"]
 
     def load_case(self, case_id: str) -> dict:
         case = super().load_case(case_id)
-        provenance = {}
-        for system in ZETARIS_QUERIES:
+        provenance, served = {}, []
+        for system in SYSTEMS:
             try:
-                rows = self._query(system, case_id)
-                case["sources"][system]["records"] = rows
-                provenance[system] = "zetaris"
-            except Exception as exc:  # honest per-system fallback
-                provenance[system] = f"fixture-fallback ({type(exc).__name__})"
+                rows = self.run_sql(build_sql(self.database, system, case_id))
+                records = map_rows(system, rows)
+                # late-event overlay is local simulation state; keep it on top of Zetaris rows
+                overlay = [e["record"] for e in case.get("late_events", []) if e["system"] == system]
+                case["sources"][system]["records"] = records + overlay
+                provenance[system] = "zetaris" if records else "zetaris (0 rows)"
+                served.append(system)
+                _ZETARIS_STATUS["rows"] += len(records)
+            except (ZetarisError, json.JSONDecodeError) as exc:
+                provenance[system] = f"fixture-fallback ({exc})"
+                _ZETARIS_STATUS["last_error"] = f"{system}: {exc}"
+        if served:
+            _ZETARIS_STATUS["last_ok_at"] = time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime())
+            _ZETARIS_STATUS["systems_served"] = served
         case["provenance"] = provenance
         return case
 
 
 def make_source():
-    url = os.environ.get("ZETARIS_URL")
-    if url:
-        return ZetarisSource(url, os.environ.get("ZETARIS_TOKEN"))
+    url = os.environ.get("ZETARIS_REST_URL")
+    sample = os.environ.get("SAMPLE_MODE", "").lower() in ("1", "true", "yes")
+    if url and not sample:
+        return ZetarisSource(url, os.environ.get("ZETARIS_API_KEY", ""), os.environ.get("ZETARIS_ORG_ID", ""),
+                             os.environ.get("ZETARIS_DATABASE", "payproof"), float(os.environ.get("ZETARIS_TIMEOUT_S", "15")))
     return LocalFixtureSource()

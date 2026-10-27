@@ -1,0 +1,128 @@
+{
+  "run_id": "sample-CASE-1010",
+  "status": "success",
+  "input": {
+    "case_id": "CASE-1010",
+    "claimed_shortfall": "1000.00",
+    "narrative": "Contract was amended to $55,000. I should get commission on the full $50,000 collected."
+  },
+  "output": {
+    "summary": "DISPUTED / UNDETERMINED: due None, paid 4500.00, variance None",
+    "proof_status": "DISPUTED",
+    "verdict": "UNDETERMINED",
+    "due": null,
+    "paid": "4500.00",
+    "variance": null,
+    "blockers": [],
+    "skeptic_strongest": "SK-AMENDMENT_CONFLICT",
+    "recommendations": [
+      {
+        "type": "OPEN_DISPUTE",
+        "case_id": "CASE-1010",
+        "employee_id": "E-2010",
+        "opportunity_id": "OPP-1010",
+        "amount": null,
+        "justification": "Material contradiction in source records: 2 amendments share effective date 2026-04-01 with different values",
+        "affected_records": [
+          "AMD-1010-A",
+          "AMD-1010-B"
+        ],
+        "expected_result": "Formal dispute opened for source-record owners; no payout change until resolved.",
+        "preconditions": {
+          "source_fingerprint": "cb8eff1a194515c2710dab4ae0962969ae61b2458e1cdf70a878547edbe1042d",
+          "proof_status": "DISPUTED",
+          "expected_paid_before": "4500.00",
+          "expected_due": "4500.00"
+        },
+        "required_permission": "finance_approver",
+        "run_id": "RUN-218085a26494",
+        "idempotency_key": "IDK-4f2a5a374609b808",
+        "simulated": true
+      }
+    ],
+    "counterfactuals": [
+      {
+        "id": "cf_choose_AMD-1010-B",
+        "title": "Conflict resolved in favour of AMD-1010-B",
+        "due": "5000.00",
+        "delta": "500.00",
+        "delta_change": "500.00"
+      },
+      {
+        "id": "cf_no_amend_AMD-1010-A",
+        "title": "Amendment AMD-1010-A not applied",
+        "due": "5000.00",
+        "delta": "500.00",
+        "delta_change": "500.00"
+      },
+      {
+        "id": "cf_choose_AMD-1010-A",
+        "title": "Conflict resolved in favour of AMD-1010-A",
+        "due": "4500.00",
+        "delta": "0.00",
+        "delta_change": "0.00"
+      },
+      {
+        "id": "cf_no_amend_AMD-1010-B",
+        "title": "Amendment AMD-1010-B not applied",
+        "due": "4500.00",
+        "delta": "0.00",
+        "delta_change": "0.00"
+      }
+    ],
+    "artifacts": {
+      "proof_hash": "9032795652c8b070ab6d441e3b7c93fa30a45146402ccc8a2aba8bfa15b7be38",
+      "source_fingerprint": "cb8eff1a194515c2710dab4ae0962969ae61b2458e1cdf70a878547edbe1042d",
+      "world_model_state_hash": "f985831fe951e3f3",
+      "provenance": {
+        "hris": "local-fixtures",
+        "crm": "local-fixtures",
+        "clm": "local-fixtures",
+        "billing": "local-fixtures",
+        "comp": "local-fixtures",
+        "payroll": "local-fixtures"
+      }
+    }
+  },
+  "agents": [
+    {
+      "name": "Investigator",
+      "role": "assembles evidence and proposes the initial explanation and waterfall"
+    },
+    {
+      "name": "Skeptic",
+      "role": "searches for evidence that falsifies the explanation; replays counterfactuals"
+    },
+    {
+      "name": "Policy verifier",
+      "role": "recomputes every amount from cited records; checks invariants and conflict materiality"
+    },
+    {
+      "name": "Resolution planner",
+      "role": "proposes one typed, approval-gated action with an idempotency key"
+    },
+    {
+      "name": "Final validator",
+      "role": "rejects uncited claims, invented amounts and unsafe actions"
+    }
+  ],
+  "trace_id": "RUN-218085a26494",
+  "log_file": "samples/logs/RUN-218085a26494-trace.jsonl",
+  "model": "deterministic-fallback",
+  "model_calls": [
+    {
+      "role": "explain_resolution",
+      "model": "deterministic-fallback",
+      "provider": null,
+      "status": "fallback",
+      "reason": "model not configured or disabled for this path"
+    },
+    {
+      "role": "strongest_counterargument",
+      "model": "deterministic-fallback",
+      "provider": null,
+      "status": "fallback",
+      "reason": "model not configured or disabled for this path"
+    }
+  ]
+}

@@ -1,0 +1,136 @@
+{
+  "run_id": "sample-CASE-1001",
+  "status": "success",
+  "input": {
+    "case_id": "CASE-1001",
+    "claimed_shortfall": "3000.00",
+    "narrative": "I closed Northwind at $60,000 in March. At 10% I should have earned $6,000 but I've only received around $3,000. Please fix the $3,000 shortfall."
+  },
+  "output": {
+    "summary": "VERIFIED / PARTIALLY_SUPPORTED: due 4300.00, paid 3200.00, variance 1100.00",
+    "proof_status": "VERIFIED",
+    "verdict": "PARTIALLY_SUPPORTED",
+    "due": "4300.00",
+    "paid": "3200.00",
+    "variance": "1100.00",
+    "blockers": [],
+    "skeptic_strongest": "SK-LATE-PAY-44987",
+    "recommendations": [
+      {
+        "type": "PREPARE_PAYROLL_ADJUSTMENT",
+        "case_id": "CASE-1001",
+        "employee_id": "E-1042",
+        "opportunity_id": "OPP-5521",
+        "amount": "1100.00",
+        "justification": "Verified commission due $4,300.00 exceeds paid $3,200.00; includes reversal of duplicate line PL-20260630-042",
+        "affected_records": [
+          "PL-20260531-118",
+          "PL-20260630-041",
+          "PL-20260630-042"
+        ],
+        "expected_result": "Paid total for E-1042/OPP-5521 becomes $4,300.00; variance 0.00.",
+        "preconditions": {
+          "source_fingerprint": "c6a827fb11b0a87b7071613045ffd930ae12780a5e450cbd84e5a928384680c6",
+          "proof_status": "VERIFIED",
+          "expected_paid_before": "3200.00",
+          "expected_due": "4300.00"
+        },
+        "required_permission": "finance_approver",
+        "run_id": "RUN-40c796f089e3",
+        "idempotency_key": "IDK-95c760dd1dcbfcfd",
+        "simulated": true
+      }
+    ],
+    "counterfactuals": [
+      {
+        "id": "cf_split_5050",
+        "title": "Territory split misattributed (50/50 with U-91)",
+        "due": "2150.00",
+        "delta": "-1050.00",
+        "delta_change": "-2150.00"
+      },
+      {
+        "id": "cf_recorded_timing",
+        "title": "Use system-recorded dates instead of value dates",
+        "due": "3400.00",
+        "delta": "200.00",
+        "delta_change": "-900.00"
+      },
+      {
+        "id": "cf_full_payment_INV-8801",
+        "title": "Invoice INV-8801 paid in full before cutoff",
+        "due": "4800.00",
+        "delta": "1600.00",
+        "delta_change": "500.00"
+      },
+      {
+        "id": "cf_cn_after_CN-0077",
+        "title": "Credit note CN-0077 issued after cutoff",
+        "due": "4500.00",
+        "delta": "1300.00",
+        "delta_change": "200.00"
+      },
+      {
+        "id": "cf_dedupe_PL-20260630-042",
+        "title": "Duplicate payroll line PL-20260630-042 removed",
+        "due": "4300.00",
+        "delta": "900.00",
+        "delta_change": "-200.00"
+      }
+    ],
+    "artifacts": {
+      "proof_hash": "5f554c9ec65481fcfe1b722d45907a4c0f0d7d6b6056e1f9d93711b3f48bc39c",
+      "source_fingerprint": "c6a827fb11b0a87b7071613045ffd930ae12780a5e450cbd84e5a928384680c6",
+      "world_model_state_hash": "8258e8b88056fff0",
+      "provenance": {
+        "hris": "local-fixtures",
+        "crm": "local-fixtures",
+        "clm": "local-fixtures",
+        "billing": "local-fixtures",
+        "comp": "local-fixtures",
+        "payroll": "local-fixtures"
+      }
+    }
+  },
+  "agents": [
+    {
+      "name": "Investigator",
+      "role": "assembles evidence and proposes the initial explanation and waterfall"
+    },
+    {
+      "name": "Skeptic",
+      "role": "searches for evidence that falsifies the explanation; replays counterfactuals"
+    },
+    {
+      "name": "Policy verifier",
+      "role": "recomputes every amount from cited records; checks invariants and conflict materiality"
+    },
+    {
+      "name": "Resolution planner",
+      "role": "proposes one typed, approval-gated action with an idempotency key"
+    },
+    {
+      "name": "Final validator",
+      "role": "rejects uncited claims, invented amounts and unsafe actions"
+    }
+  ],
+  "trace_id": "RUN-40c796f089e3",
+  "log_file": "samples/logs/RUN-40c796f089e3-trace.jsonl",
+  "model": "deterministic-fallback",
+  "model_calls": [
+    {
+      "role": "explain_resolution",
+      "model": "deterministic-fallback",
+      "provider": null,
+      "status": "fallback",
+      "reason": "model not configured or disabled for this path"
+    },
+    {
+      "role": "strongest_counterargument",
+      "model": "deterministic-fallback",
+      "provider": null,
+      "status": "fallback",
+      "reason": "model not configured or disabled for this path"
+    }
+  ]
+}

@@ -31,22 +31,41 @@ class App:
     def investigation(self, case_id):
         return self.svc.investigate(case_id)
 
+
     def queue(self, user):
         out = []
         for cid in self.source.list_case_ids():
-            r = self.investigation(cid)
+            r = self.svc.investigate(cid, use_model=False)
             if user and user["role"] == "sales_rep" and r["dispute"]["employee_id"] != user["id"]:
                 continue
             acts = [a for a in self.svc.actions.values() if a["case_id"] == cid]
             emp = next(n for n in r["graph"]["nodes"] if n["id"] == r["dispute"]["employee_id"])
-            exposure = abs(float(r["calculation"]["delta"])) if r["calculation"]["delta"] else float(r["dispute"]["claimed_shortfall"])
+            verified = r["proof_status"] == "VERIFIED"
+            exposure = abs(float(r["calculation"]["delta"])) if verified else float(r["dispute"]["claimed_shortfall"])
             out.append({"case_id": cid, "title": r["title"], "claimant": emp["label"], "employee_id": r["dispute"]["employee_id"],
-                        "claimed": r["dispute"]["claimed_shortfall"], "delta": r["calculation"]["delta"],
+                        "claimed": r["dispute"]["claimed_shortfall"], "delta": r["calculation"]["delta"] if verified else None,
                         "exposure": f"{exposure:.2f}", "proof_status": r["proof_status"], "verdict": r["verdict"],
                         "action": r["proposed_action"]["type"], "action_state": acts[-1]["state"] if acts else None,
                         "filed_at": r["dispute"]["filed_at"], "tags": r["tags"]})
         out.sort(key=lambda x: (0 if "demo" in x["tags"] else 1, -float(x["exposure"])))
         return out
+
+
+LOGS = ROOT / "logs"
+
+
+def write_logs(r, world):
+    """Judge-inspectable traces: the run summary and the Meterless World Model audit as JSONL."""
+    from .world_model import write_audit_jsonl
+    LOGS.mkdir(exist_ok=True)
+    write_audit_jsonl(world, LOGS / f"{r['run_id']}-world-model.jsonl")
+    trace = {k: r[k] for k in ("run_id", "case_id", "proof_status", "verdict", "proof_hash", "source_fingerprint",
+                               "world_model_state_hash", "telemetry")}
+    trace["action"] = {k: r["proposed_action"][k] for k in ("type", "amount", "required_permission", "idempotency_key")}
+    trace["skeptic_strongest"] = r["skeptic"]["strongest"]
+    trace["invariants"] = r["verification"]["invariants"]
+    with (LOGS / f"{r['run_id']}-trace.jsonl").open("a") as fh:
+        fh.write(json.dumps(trace, default=str) + "\n")
 
 
 def log(**kw):
@@ -116,6 +135,8 @@ def make_handler(app: App):
             if (g := m(r"/api/cases/(CASE-\d{4})")) and method == "GET":
                 self._check_case_access(self._viewer(), g[1])
                 r = app.investigation(g[1])
+                world = r.pop("_world")
+                write_logs(r, world)
                 r["actions"] = [a for a in app.svc.actions.values() if a["case_id"] == g[1]]
                 return 200, r
             if (g := m(r"/api/cases/(CASE-\d{4})/sources")) and method == "GET":

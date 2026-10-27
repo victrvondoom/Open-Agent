@@ -1,0 +1,114 @@
+{
+  "run_id": "sample-CASE-1015",
+  "status": "success",
+  "input": {
+    "case_id": "CASE-1015",
+    "claimed_shortfall": "4500.00",
+    "narrative": "Orion closed at $45,000 and I received nothing. Please pay $4,500 now."
+  },
+  "output": {
+    "summary": "NEEDS_EVIDENCE / UNDETERMINED: due None, paid 0.00, variance None",
+    "proof_status": "NEEDS_EVIDENCE",
+    "verdict": "UNDETERMINED",
+    "due": null,
+    "paid": "0.00",
+    "variance": null,
+    "blockers": [
+      {
+        "code": "MISSING_CONTRACT",
+        "detail": "No signed contract found for OPP-1015 in CLM",
+        "cites": [
+          "OPP-1015"
+        ]
+      }
+    ],
+    "skeptic_strongest": null,
+    "recommendations": [
+      {
+        "type": "REQUEST_EVIDENCE",
+        "case_id": "CASE-1015",
+        "employee_id": "E-2015",
+        "opportunity_id": "OPP-1015",
+        "amount": null,
+        "justification": "No signed contract found for OPP-1015 in CLM",
+        "affected_records": [
+          "OPP-1015"
+        ],
+        "expected_result": "Evidence request ticket opened with source-system owners; no payout change.",
+        "preconditions": {
+          "source_fingerprint": "0f04de53526f0b208eb00ad03d5b8787d446d7e160a429db34f43fc88f532f37",
+          "proof_status": "NEEDS_EVIDENCE",
+          "expected_paid_before": "0.00",
+          "expected_due": null
+        },
+        "required_permission": "finance_approver",
+        "run_id": "RUN-b3d7023556dd",
+        "idempotency_key": "IDK-7cc649c139c7c331",
+        "simulated": true
+      }
+    ],
+    "counterfactuals": [
+      {
+        "id": "cf_contract_at_crm",
+        "title": "Signed contract found at the CRM amount",
+        "due": "4500.00",
+        "delta": "4500.00",
+        "delta_change": null
+      }
+    ],
+    "artifacts": {
+      "proof_hash": "8726aa5c4a0fd5d02e4695b00e07ba778eb82dd96638ed34cd84093df956291e",
+      "source_fingerprint": "0f04de53526f0b208eb00ad03d5b8787d446d7e160a429db34f43fc88f532f37",
+      "world_model_state_hash": "88a7a2bb616a7030",
+      "provenance": {
+        "hris": "local-fixtures",
+        "crm": "local-fixtures",
+        "clm": "local-fixtures",
+        "billing": "local-fixtures",
+        "comp": "local-fixtures",
+        "payroll": "local-fixtures"
+      }
+    }
+  },
+  "agents": [
+    {
+      "name": "Investigator",
+      "role": "assembles evidence and proposes the initial explanation and waterfall"
+    },
+    {
+      "name": "Skeptic",
+      "role": "searches for evidence that falsifies the explanation; replays counterfactuals"
+    },
+    {
+      "name": "Policy verifier",
+      "role": "recomputes every amount from cited records; checks invariants and conflict materiality"
+    },
+    {
+      "name": "Resolution planner",
+      "role": "proposes one typed, approval-gated action with an idempotency key"
+    },
+    {
+      "name": "Final validator",
+      "role": "rejects uncited claims, invented amounts and unsafe actions"
+    }
+  ],
+  "trace_id": "RUN-b3d7023556dd",
+  "log_file": "samples/logs/RUN-b3d7023556dd-trace.jsonl",
+  "model": "deterministic-fallback",
+  "model_calls": [
+    {
+      "role": "explain_resolution",
+      "model": "deterministic-fallback",
+      "provider": null,
+      "status": "fallback",
+      "reason": "model not configured or disabled for this path"
+    },
+    {
+      "role": "strongest_counterargument",
+      "model": "deterministic-fallback",
+      "provider": null,
+      "status": "fallback",
+      "reason": "model not configured or disabled for this path"
+    }
+  ]
+}

@@ -98,6 +98,22 @@ class DemoCaseTests(unittest.TestCase):
         investigate(case, PLANS)
         self.assertEqual(before, json.dumps(case, sort_keys=True))
 
+    def test_missing_pay_calendar_needs_evidence(self):
+        case = LocalFixtureSource().load_case("CASE-1001")
+        case["sources"]["payroll"]["records"] = []
+        r = investigate(case, PLANS)
+        self.assertEqual(r["proof_status"], "NEEDS_EVIDENCE")
+        self.assertEqual(r["proposed_action"]["type"], "REQUEST_EVIDENCE")
+
+    def test_world_model_cross_check_runs_and_passes(self):
+        for cid in GT:
+            inv = {i["invariant"]: i for i in run(cid)["verification"]["invariants"]}
+            wmc = [v for k, v in inv.items() if "World Model" in k]
+            if run(cid)["calculation"]["blockers"] or GT[cid]["due"] is None and "collected" not in str(inv):
+                continue
+            for v in wmc:
+                self.assertTrue(v["passed"], f"{cid}: {v['detail']}")
+
     def test_material_conflict_is_disputed_immaterial_is_verified(self):
         self.assertEqual(run("CASE-1010")["proof_status"], "DISPUTED")
         r = run("CASE-1011")
@@ -187,6 +203,22 @@ class ActionTests(unittest.TestCase):
         self.svc.execute(a["id"], "ops", a["idempotency_key"])
         self.assertEqual(a["state"], "VERIFIED")
         self.assertEqual(len(self.svc.adapter.ledger), 1)
+
+    def test_failed_postcondition_never_yields_receipt(self):
+        a = self._approved()
+        self.svc.verify_postcondition = lambda a, row: {"passed": False, "check": "forced failure"}
+        with self.assertRaises(ActionError) as cm:
+            self.svc.execute(a["id"], "ops", a["idempotency_key"])
+        self.assertEqual(cm.exception.code, "POSTCONDITION_FAILED")
+        self.assertEqual(a["state"], "FAILED")
+        self.assertIsNone(a["receipt"])
+        self.assertFalse(a["failure"]["postcondition"]["passed"])
+        # retry with the same key does not duplicate the adapter write
+        del self.svc.verify_postcondition
+        self.svc.execute(a["id"], "ops", a["idempotency_key"])
+        self.assertEqual(a["state"], "VERIFIED")
+        self.assertEqual(len(self.svc.adapter.ledger), 1)
+        self.assertTrue(a["receipt"]["postcondition"]["passed"])
 
     def test_wrong_idempotency_key(self):
         a = self._approved()

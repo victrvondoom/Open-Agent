@@ -68,7 +68,14 @@ def compute(index, plans: dict, identity: dict, scenario: Scenario | None = None
         steps.append({"key": key, "label": label, "rule": rule, "value": value, "formula": formula,
                       "cites": [c for c in cites if c], "excluded": excluded or [], **extra})
 
-    cal = next(r for r in v.of_type("pay_calendar") if r["period"] == dispute["period"])
+    cal = next((r for r in v.of_type("pay_calendar") if r["period"] == dispute["period"]), None)
+    if cal is None:
+        blockers.append({"code": "MISSING_PAY_CALENDAR", "detail": f"No payroll calendar for {dispute['period']}; cutoff unknown",
+                         "cites": [dispute["id"]]})
+        step("cutoff", "Measurement cutoff", "PAYCAL", "unknown", [])
+        paid, pl_cites = _paid(v, dispute)
+        step("paid", "Commission already paid", "PAYROLL", fmt(paid), pl_cites, formula="sum(posted payroll lines)")
+        return _result(s, steps, conflicts, blockers, None, paid)
     cutoff = cal["measurement_cutoff"]
     step("cutoff", "Measurement cutoff", "PAYCAL", cutoff, [cal["id"]])
 

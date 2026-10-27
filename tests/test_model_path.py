@@ -5,6 +5,7 @@ import threading
 import unittest
 from http.server import BaseHTTPRequestHandler, HTTPServer
 
+from payproof import llm
 from payproof.llm import ModelClient
 from payproof.sources import LocalFixtureSource, load_plans
 from payproof.workflow import investigate
@@ -36,6 +37,7 @@ class Stub(BaseHTTPRequestHandler):
 
 class ModelPathTests(unittest.TestCase):
     def setUp(self):
+        self.status_before = dict(llm._STATUS)
         self.srv = HTTPServer(("127.0.0.1", 0), Stub)
         threading.Thread(target=self.srv.serve_forever, daemon=True).start()
         os.environ["LLM_BASE_URL"] = f"http://127.0.0.1:{self.srv.server_port}/v1"
@@ -43,6 +45,8 @@ class ModelPathTests(unittest.TestCase):
     def tearDown(self):
         self.srv.shutdown()
         os.environ.pop("LLM_BASE_URL", None)
+        llm._CACHE.clear()
+        llm._STATUS.clear(); llm._STATUS.update(self.status_before)  # a stub must never leave the client looking live
 
     def test_validator_drops_hallucinated_claims_and_model_cannot_change_money(self):
         r = investigate(LocalFixtureSource().load_case("CASE-1001"), load_plans(), model=ModelClient())
@@ -54,6 +58,9 @@ class ModelPathTests(unittest.TestCase):
         self.assertEqual(r["calculation"]["due"], "4300.00")
         self.assertEqual(r["proposed_action"]["amount"], "1100.00")
         self.assertEqual([m["status"] for m in r["telemetry"]["model_calls"]], ["ok", "ok"])
+        self.assertLessEqual(Stub.calls, 2)
+        # identical facts are served from cache, not re-sent
+        investigate(LocalFixtureSource().load_case("CASE-1001"), load_plans(), model=ModelClient())
         self.assertLessEqual(Stub.calls, 2)
 
 

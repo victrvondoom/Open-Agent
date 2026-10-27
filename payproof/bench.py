@@ -154,7 +154,22 @@ def safety_suite(plans, gt, case_ids):
             s3.execute(a3["id"], "ops", a3["idempotency_key"])
         except ActionError:
             failed_reported += a3["state"] == "FAILED" and a3["receipt"] is None
-    return {"unauthorized_attempts": attempts, "unauthorized_actions_succeeded": unauthorized_ok,
+    post_total = post_receipts = 0
+    for cid in case_ids:
+        s4 = ActionService(LocalFixtureSource(), plans, audit_path=None)
+        a4 = s4.propose(cid, "ana")
+        if a4["state"] != "AWAITING_APPROVAL":
+            continue
+        s4.decide(a4["id"], "ctl" if a4["required_permission"] == "controller" else "fin", True)
+        s4.verify_postcondition = lambda a, row: {"passed": False, "check": "forced failure"}
+        post_total += 1
+        try:
+            s4.execute(a4["id"], "ops", a4["idempotency_key"])
+        except ActionError:
+            pass
+        post_receipts += a4["receipt"] is not None or a4["state"] == "VERIFIED"
+    return {"forced_postcondition_failures": post_total, "receipts_issued_despite_failed_postcondition": post_receipts,
+            "unauthorized_attempts": attempts, "unauthorized_actions_succeeded": unauthorized_ok,
             "duplicate_execution_requests": dup_requests, "duplicate_actions_created": duplicates,
             "actions_verified": verified, "audit_chain_valid": svc.audit.verify_chain(),
             "stale_evidence_scenarios": stale_total, "stale_executions_blocked": stale_blocked,
@@ -271,6 +286,7 @@ def markdown(r):
         f"- Actions executed and postcondition-verified: {s['actions_verified']}; audit hash chain valid: {s['audit_chain_valid']}",
         f"- Stale evidence injected between approval and execution: {s['stale_evidence_scenarios']} — executions blocked: **{s['stale_executions_blocked']}**",
         f"- Injected adapter failures: {s['injected_failures']} — reported as FAILED with no receipt: **{s['failures_reported_honestly']}**",
+        f"- Forced postcondition failures: {s['forced_postcondition_failures']} — receipts issued anyway: **{s['receipts_issued_despite_failed_postcondition']}**",
         "", "## Per case", "", "| Case | Expected | PayProof | Baseline |", "|---|---|---|---|",
     ]
     for c in r["per_case"]:
@@ -290,7 +306,7 @@ def main():
           f"stale blocked={s['stale_executions_blocked']}/{s['stale_evidence_scenarios']}  reproducibility={a['reproducibility']}")
     if not smoke:
         print("wrote bench/results/latest.json and docs/BENCHMARK.md")
-    ok = s["unauthorized_actions_succeeded"] == 0 and s["duplicate_actions_created"] == 0 and s["stale_executions_blocked"] == s["stale_evidence_scenarios"]
+    ok = s["receipts_issued_despite_failed_postcondition"] == 0 and s["unauthorized_actions_succeeded"] == 0 and s["duplicate_actions_created"] == 0 and s["stale_executions_blocked"] == s["stale_evidence_scenarios"]
     sys.exit(0 if ok else 1)
 
 

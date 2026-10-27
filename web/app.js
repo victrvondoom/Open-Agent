@@ -38,12 +38,16 @@ async function boot() {
   $("#reset").onclick = async () => { await api("/api/demo/reset", { method: "POST" }); toast("Demo state reset"); await loadQueue(); if (state.caseId) openCase(state.caseId); };
   $("#drawer-close").onclick = () => $("#drawer").classList.add("hidden");
   document.addEventListener("click", (e) => { const c = e.target.closest("[data-rec]"); if (c) inspect(c.dataset.rec); });
-  const integ = await api("/api/integrations");
-  $("#integrations").innerHTML = integ.rows.filter((r) => r.mode !== "n/a at runtime").map((r) =>
-    `<span class="chip ${r.mode === "live" ? "live" : "fallback"}" title="${esc(r.capability + " — " + r.detail)}">${esc(r.sponsor)}: ${esc(r.mode)}</span>`).join("");
+  await refreshIntegrations();
   await loadQueue();
   const first = new URLSearchParams(location.search).get("case") || "CASE-1001";
   openCase(first).catch(() => {});
+}
+
+async function refreshIntegrations() {
+  const integ = await api("/api/integrations");
+  $("#integrations").innerHTML = integ.rows.filter((r) => r.state !== "N/A").map((r) =>
+    `<span class="chip st-${esc(r.state)}" title="${esc(r.capability + " — " + r.detail)}">${esc(r.sponsor)}: ${esc(r.state.replace(/_/g, " "))}</span>`).join("");
 }
 
 async function loadQueue() {
@@ -66,6 +70,7 @@ async function openCase(id) {
   const [data, sources] = await Promise.all([api(`/api/cases/${id}`), api(`/api/cases/${id}/sources`)]);
   state.data = data; state.sources = sources;
   render();
+  refreshIntegrations().catch(() => {});
 }
 
 function recordById(id) {
@@ -117,9 +122,9 @@ function render() {
       <div class="narr">“${esc(d.dispute.narrative)}”</div>
       <div class="kpis">
         <div class="kpi"><div class="l">Claimed shortfall</div><div class="v">${money(d.dispute.claimed_shortfall)}</div></div>
-        <div class="kpi"><div class="l">Verified due</div><div class="v">${money(c.due)}</div></div>
+        <div class="kpi"><div class="l">Verified due</div><div class="v">${d.proof_status === "VERIFIED" ? money(c.due) : "—"}</div>${d.proof_status === "VERIFIED" ? "" : `<div class="dim" style="font-size:11px">not established (${esc(d.proof_status.replace("_", " ").toLowerCase())})</div>`}</div>
         <div class="kpi"><div class="l">Paid to date</div><div class="v">${money(c.paid)}</div></div>
-        <div class="kpi"><div class="l">Variance</div><div class="v ${Number(c.delta) > 0 ? "pos" : Number(c.delta) < 0 ? "neg" : ""}">${signed(c.delta)}</div></div>
+        <div class="kpi"><div class="l">Variance</div><div class="v ${d.proof_status !== "VERIFIED" ? "" : Number(c.delta) > 0 ? "pos" : Number(c.delta) < 0 ? "neg" : ""}">${d.proof_status === "VERIFIED" ? signed(c.delta) : "—"}</div></div>
       </div>
     </div>
     <div class="card">
@@ -132,7 +137,8 @@ function render() {
         <div class="k">plan version</div><div>${esc(d.plan_version || "—")}</div>
         <div class="k">model</div><div>${esc(d.telemetry.model_identity)}</div>
         <div class="k">model calls</div><div>${d.telemetry.model_calls.map((m) => esc(m.role + ":" + m.status)).join(", ")}</div>
-        <div class="k">scenario ranking</div><div>${esc("meterless " + d.telemetry.meterless.status)}</div>
+        <div class="k">Meterless World Model</div><div>${esc(d.world_model.entities)} entities · ${esc(d.world_model.relationships)} edges · ${esc(d.world_model.events)} events · state ${esc(d.world_model.state_hash)}</div>
+        <div class="k">WM cross-check</div><div>${d.world_model.cross_check ? (d.world_model.cross_check.passed ? "✅ as-of-cutoff view = engine cash events" : "❌ mismatch") : "n/a"}</div>
         <div class="k">sources</div><div>${Object.entries(d.sources_meta.provenance).map(([k, v]) => esc(k + "=" + v)).join(", ")}</div>
         <div class="k">latency</div><div>${esc(d.telemetry.latency_ms)} ms</div>
       </div>
