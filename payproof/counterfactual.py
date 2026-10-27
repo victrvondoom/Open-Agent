@@ -59,6 +59,15 @@ def generate_scenarios(index, actual: dict, identity: dict) -> list[tuple[Scenar
                 f"What if {cn['id']} had been issued on or before {cutoff}?", [cn["id"]],
                 patch={cn["id"]: {"issued_date": cutoff, "recorded_at": cutoff + "T00:00:00Z"}})
 
+    # Missing evidence: what would the outcome be if the missing record existed?
+    if any(b["code"] == "MISSING_CONTRACT" for b in actual["blockers"]):
+        opp = index.get(d["opportunity_id"])
+        add("cf_contract_at_crm", "Signed contract found at the CRM amount",
+            f"What if CLM produced a contract for {opp['id']} at {fmt(D(opp['amount']))}, signed {opp['close_date']}? "
+            "(Shows what the missing evidence would establish; does not replace it.)", [opp["id"]],
+            add=[("clm", {"id": f"HYP-CTR-{opp['id']}", "type": "contract", "opportunity_id": opp["id"], "tcv": opp["amount"],
+                          "signed_date": opp["close_date"], "recorded_at": opp["close_date"] + "T00:00:00Z", "hypothetical": True})])
+
     # Amendments
     for a in index.of_type("amendment"):
         if a["signed_date"] <= cutoff:

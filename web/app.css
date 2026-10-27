@@ -51,7 +51,7 @@ select { font: inherit; background: #172235; color: var(--text); border: 1px sol
 main { padding: 18px 22px 80px; min-width: 0; }
 .empty { color: var(--dim); padding: 40px; }
 .hero { display: grid; grid-template-columns: 1.4fr 1fr; gap: 16px; margin-bottom: 16px; }
-.card { background: var(--panel); border: 1px solid var(--line); border-radius: 14px; padding: 16px 18px; min-width: 0; }
+.card { overflow-x: auto; background: var(--panel); border: 1px solid var(--line); border-radius: 14px; padding: 16px 18px; min-width: 0; }
 .card h3 { margin: 0 0 10px; font-size: 13px; text-transform: uppercase; letter-spacing: 1px; color: var(--dim); display: flex; justify-content: space-between; align-items: center; gap: 8px; }
 .card h3 .n { color: var(--accent); margin-right: 6px; }
 .case-title { font-size: 20px; font-weight: 700; margin: 2px 0 6px; }
@@ -127,5 +127,8 @@ pre { background: #0a0f18; border: 1px solid var(--line); border-radius: 8px; pa
   .layout { grid-template-columns: 1fr; }
   .queue { position: static; max-height: 300px; border-right: none; border-bottom: 1px solid var(--line); }
   main { padding: 14px 16px 60px; }
-  .nav { top: 0; }
+  .nav { top: 0; position: static; }
+  .top { position: static; }
+  .kv { grid-template-columns: 1fr; }
+  .kpi .v { font-size: 16px; }
 }

@@ -82,8 +82,9 @@ def investigator(index, calc, identity):
             claims.append({"text": f"Opportunity is not commissionable; {_money(calc['paid'])} paid.", "cites": [opp["id"]]})
         if calc["delta"] is not None:
             dl = D(calc["delta"])
-            word = "underpaid" if dl > 0 else "overpaid" if dl < 0 else "paid correctly"
-            claims.append({"text": f"Initial hypothesis: claimant was {word} by {_money(abs(dl))}.",
+            text = (f"Initial hypothesis: claimant was {'underpaid' if dl > 0 else 'overpaid'} by {_money(abs(dl))}."
+                    if dl else "Initial hypothesis: payout matches the verified commission due.")
+            claims.append({"text": text,
                            "cites": [d["id"]] + _step(calc, "paid")["cites"]})
     return {"statement": claims[-1]["text"], "claims": claims, "premise": fmt(premise) if premise is not None else None,
             "waterfall": waterfall(index, calc)}
@@ -263,10 +264,12 @@ def policy_verifier(index, plans, identity, calc, ledger=()):
     return {"invariants": inv, "conflicts": conflicts, "proof_status": status}
 
 
-def verdict_for(status, calc, claimed):
+def verdict_for(status, calc, claimed, ledger=()):
     if status != "VERIFIED":
         return "UNDETERMINED"
     delta = D(calc["delta"])
+    if ledger and delta == 0:
+        return "SETTLED"
     if delta <= 0:
         return "REJECTED"
     return "SUPPORTED" if delta >= D(claimed) else "PARTIALLY_SUPPORTED"
@@ -302,7 +305,8 @@ def resolution_planner(index, plans, status, verdict, calc, fingerprint, run_id,
         affected = paid_cites
     elif status == "VERIFIED":
         typ = "RECONCILIATION_REPORT"
-        justification = f"Payout of {_money(calc['paid'])} matches verified due; claim not supported."
+        justification = (f"Payout of {_money(calc['paid'])} now matches verified due after executed adjustment(s)."
+                         if verdict == "SETTLED" else f"Payout of {_money(calc['paid'])} matches verified due; claim not supported.")
         expected = "Reconciliation report delivered to claimant and manager; no payout change."
         affected = paid_cites or [d["id"]]
     else:
@@ -374,13 +378,14 @@ def investigate(case: dict, plans: dict, ledger: list | None = None, model: Mode
     t0 = time.monotonic()
     model = model or ModelClient()
     index = EvidenceIndex(case)
+    index.add_simulated(ledger or [])
     d = case["dispute"]
     fingerprint = source_fingerprint(case)
     run_id = "RUN-" + sha([fingerprint, ENGINE_VERSION, ledger or []])[:12]
     emp = index.get(d["employee_id"])
     identity = resolve_identity(emp, index.of_type("crm_user"))
 
-    calc = compute(index, plans, identity, Scenario(ledger=ledger or []))
+    calc = compute(index, plans, identity, Scenario())
     cutoff = _step(calc, "cutoff")["value"]
     tl = timeline(index, cutoff)
     cfs = replay(index, plans, identity, calc)
@@ -390,7 +395,7 @@ def investigate(case: dict, plans: dict, ledger: list | None = None, model: Mode
     sk = skeptic(index, calc, identity, cfs, tl)
     ver = policy_verifier(index, plans, identity, calc, ledger or [])
     status = ver["proof_status"]
-    verdict = verdict_for(status, calc, d["claimed_shortfall"])
+    verdict = verdict_for(status, calc, d["claimed_shortfall"], ledger or [])
     action = resolution_planner(index, plans, status, verdict, calc, fingerprint, run_id, sk["findings"])
     bundle = build_bundle(index, plans, calc, identity, ver, verdict, sk, status, d)
 
@@ -460,7 +465,7 @@ def build_bundle(index, plans, calc, identity, ver, verdict, sk, status, d):
                    "status": "VERIFIED", "supporting": paid["cites"] or [d["id"]], "contradicting": sorted(set(dup)),
                    "policy": ["PAYROLL"], "calculation": [{"key": "paid", "value": paid["value"], "formula": paid["formula"]}],
                    "assumptions": [], "open_questions": [f"Duplicate payroll lines: {', '.join(sorted(set(dup)))}"] if dup else []})
-    vstatus = {"SUPPORTED": "VERIFIED", "PARTIALLY_SUPPORTED": "VERIFIED", "REJECTED": "REJECTED"}.get(verdict, status)
+    vstatus = {"SUPPORTED": "VERIFIED", "PARTIALLY_SUPPORTED": "VERIFIED", "SETTLED": "VERIFIED", "REJECTED": "REJECTED"}.get(verdict, status)
     claims.append({"id": "CLM-CLAIM", "statement": f"Claimed shortfall of {_money(d['claimed_shortfall'])} is {verdict.replace('_', ' ').lower()}"
                    + (f" (verified variance {_money(calc['delta'])})" if status == "VERIFIED" else ""),
                    "status": vstatus, "supporting": [d["id"]] + (supp if status == "VERIFIED" else []), "contradicting": contra,

@@ -54,12 +54,13 @@ async function loadQueue() {
       <div class="qrow"><span class="qtitle">${esc(c.title)}</span>${pill(c.proof_status)}</div>
       <div class="qrow qmeta"><span>${esc(c.case_id)} · ${esc(c.claimant)}</span><span class="mono">exposure ${money(c.exposure)}</span></div>
       <div class="qrow qmeta"><span>claim ${money(c.claimed)} · ${esc(c.verdict.replace(/_/g, " ").toLowerCase())}</span>
-        <span>${c.action_state ? pill(c.action_state === "VERIFIED" ? "VERIFIED" : c.action_state, c.action_state) : ""}</span></div>
+        <span>${c.action_state ? pill(c.action_state, "action " + c.action_state) : ""}</span></div>
     </div>`).join("");
   document.querySelectorAll(".qitem").forEach((el) => (el.onclick = () => openCase(el.dataset.case)));
 }
 
 async function openCase(id) {
+  if (state.caseId !== id) state.lastErr = "";
   state.caseId = id;
   document.querySelectorAll(".qitem").forEach((el) => el.classList.toggle("active", el.dataset.case === id));
   const [data, sources] = await Promise.all([api(`/api/cases/${id}`), api(`/api/cases/${id}/sources`)]);
@@ -73,6 +74,8 @@ function recordById(id) {
     if (r) return { sys, name: blk.system, r };
   }
   if (state.sources.dispute.id === id) return { sys: "disputes", name: "dispute-intake", r: state.sources.dispute };
+  const sim = state.data.graph.nodes.find((n) => n.id === id && n.system === "sim_ledger");
+  if (sim) return { sys: "sim_ledger", name: "payroll-sim ledger (SIMULATED execution, not a source system)", r: sim };
   return null;
 }
 
@@ -242,13 +245,19 @@ function waterfallCard(w) {
 const ORDER = ["PROPOSED", "VALIDATED", "AWAITING_APPROVAL", "APPROVED", "EXECUTED", "VERIFIED"];
 
 function actionPanel(d) {
-  const p = d.proposed_action;
-  const act = d.actions.filter((x) => x.idempotency_key === p.idempotency_key).slice(-1)[0] || d.actions.slice(-1)[0];
+  const last = d.actions.slice(-1)[0];
+  const live = last && !["REJECTED", "EXPIRED"].includes(last.state) ? last : null;
+  const p = live || d.proposed_action;
+  const act = live;
   const cur = act ? act.state : null;
   const idx = cur ? ORDER.indexOf(cur) : -1;
-  const bad = ["REJECTED", "FAILED", "EXPIRED"].includes(cur);
+  const bad = cur === "FAILED";
   const me = state.users.find((u) => u.token === state.user);
-  return `<h3><span><span class="n">6</span>Proposed action — approval gated</span>${act ? pill(cur) : pill("UNDETERMINED", "not yet proposed")}</h3>
+  const prev = last && !live ? `<div class="finding">${pill(last.state)} Previous action <span class="mono">${esc(last.id)}</span> ${esc(last.type)}:
+      ${esc((last.history.slice(-1)[0] || {}).reason || (last.history.slice(-1)[0] || {}).note || "")}. A fresh investigation produced the proposal below.</div>` : "";
+  const after = live && live.state === "VERIFIED" && d.proposed_action.idempotency_key !== live.idempotency_key
+    ? `<div class="finding">${pill("VERIFIED", "re-investigated")} After execution the case re-investigates to variance ${esc(signed(d.calculation.delta))}; current recommendation: <b>${esc(d.proposed_action.type.replace(/_/g, " "))}</b>.</div>` : "";
+  return `<h3><span><span class="n">6</span>Proposed action — approval gated</span>${act ? pill(cur) : pill("UNDETERMINED", "not yet proposed")}</h3>${prev}${after}
     <div class="steps">${ORDER.map((s, i) => `<span class="stp ${i < idx || cur === "VERIFIED" ? "done" : i === idx ? "cur" : ""}">${esc(s.replace(/_/g, " "))}</span>`).join("→")}
       ${bad ? `<span class="stp bad">${esc(cur)}</span>` : ""}</div>
     <div class="kv">
@@ -272,16 +281,16 @@ function actionPanel(d) {
       <button id="b-fail" class="ghost" title="Make the next adapter call fail">⚡ Fail next execution</button>
     </div>
     <div class="dim" style="margin-top:8px">Acting as <b>${esc(me ? me.name + " (" + me.role + ")" : state.user)}</b>. Buttons are not hidden by role on purpose: the backend enforces authorization — try approving as the sales rep.</div>
-    <div id="action-err" class="err"></div>`;
+    <div id="action-err" class="err">${esc(state.lastErr || "")}</div>`;
 }
 
 function wireActions() {
   const d = state.data;
-  const act = () => d.actions.filter((x) => x.idempotency_key === d.proposed_action.idempotency_key).slice(-1)[0] || d.actions.slice(-1)[0];
+  const act = () => d.actions.slice(-1)[0];
   const run = async (fn, ok) => {
-    $("#action-err").textContent = "";
+    state.lastErr = "";
     try { const r = await fn(); if (ok) toast(ok(r)); }
-    catch (e) { $("#action-err").textContent = `${e.status || ""} ${e.body?.error || ""}: ${e.message}`; toast(`Rejected by backend: ${e.message}`, true); }
+    catch (e) { state.lastErr = `Backend refused (${e.status || ""} ${e.body?.error || ""}): ${e.message}`; toast(`Rejected by backend: ${e.message}`, true); }
     await loadQueue(); await openCase(d.case_id);
   };
   $("#b-propose").onclick = () => run(() => api(`/api/cases/${d.case_id}/actions`, { method: "POST" }), (r) => `Action ${r.id}: ${r.state}`);
@@ -305,8 +314,8 @@ async function loadAudit() {
 }
 
 function drawGraph(g) {
-  const cols = ["disputes", "hris", "crm", "clm", "billing", "comp", "payroll"];
-  const names = { disputes: "dispute", hris: "HRIS", crm: "CRM", clm: "Contracts", billing: "Billing", comp: "Comp plan", payroll: "Payroll" };
+  const cols = ["disputes", "hris", "crm", "clm", "billing", "comp", "payroll", "sim_ledger"];
+  const names = { disputes: "dispute", hris: "HRIS", crm: "CRM", clm: "Contracts", billing: "Billing", comp: "Comp plan", payroll: "Payroll", sim_ledger: "Simulated ledger" };
   const W = 150, NW = 132, NH = 40, GAP = 10, TOP = 26;
   const pos = {};
   const byCol = {};

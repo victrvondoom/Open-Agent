@@ -34,6 +34,14 @@ class EvidenceIndex:
         self.system_of[d["id"]] = "disputes"
         self.system_names["disputes"] = "dispute-intake"
 
+    def add_simulated(self, records: list[dict]):
+        """Rows written by the simulated action adapter. Kept in their own system, never in source snapshots."""
+        if records:
+            self.system_names["sim_ledger"] = "payroll-sim ledger (simulated executions)"
+        for rec in records:
+            self.records[rec["id"]] = rec
+            self.system_of[rec["id"]] = "sim_ledger"
+
     def exists(self, rid: str) -> bool:
         return rid in self.records
 
