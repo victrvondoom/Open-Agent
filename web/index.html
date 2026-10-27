@@ -1,0 +1,40 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>PayProof Decision Room</title>
+  <link rel="stylesheet" href="app.css">
+</head>
+<body>
+<header class="top">
+  <div class="brand">
+    <span class="logo">◆</span>
+    <div><div class="name">PeoplePay-360 <span class="dim">/</span> PayProof</div>
+      <div class="sub">Proof-carrying commission resolution · synthetic data only</div></div>
+  </div>
+  <div class="top-right">
+    <div id="integrations" class="chips"></div>
+    <label class="user">Acting as
+      <select id="user"></select>
+    </label>
+    <button id="reset" class="ghost" title="Clear actions, ledger and injected events">Reset demo</button>
+  </div>
+</header>
+<div class="layout">
+  <aside class="queue">
+    <div class="queue-head"><h2>Case queue</h2><span id="qcount" class="dim"></span></div>
+    <div id="queue"></div>
+  </aside>
+  <main id="main">
+    <div class="empty">Select a case.</div>
+  </main>
+</div>
+<div id="drawer" class="drawer hidden">
+  <div class="drawer-head"><h3 id="drawer-title"></h3><button id="drawer-close" class="ghost">✕</button></div>
+  <div id="drawer-body"></div>
+</div>
+<div id="toast" class="toast hidden"></div>
+<script src="app.js"></script>
+</body>
+</html>

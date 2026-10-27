@@ -1,0 +1,301 @@
+{
+  "generated_at": "2026-10-27T03:04:55Z",
+  "sample_size": 25,
+  "dataset": "synthetic, hand-labelled (bench/ground_truth.json)",
+  "agent": {
+    "cases": 25,
+    "decision_accuracy": 1.0,
+    "decisions_correct": 25,
+    "status_accuracy": 1.0,
+    "action_accuracy": 1.0,
+    "money_cases": 20,
+    "money_exact": 20,
+    "money_mean_abs_error": "0.00",
+    "money_max_abs_error": "0.00",
+    "adjustment_false_positives": 0,
+    "adjustment_false_negatives": 0,
+    "adjustment_fp_rate": 0.0,
+    "adjustment_fn_rate": 0.0,
+    "adjustments_with_wrong_amount": 0,
+    "abstention_needed": 5,
+    "correct_abstentions": 5,
+    "false_abstentions": 0,
+    "citation_coverage": 1.0,
+    "must_cite_recall": 1.0,
+    "narrative_claims": 82,
+    "unsupported_claims_dropped": 0,
+    "unsupported_claim_rate_in_output": 0.0,
+    "reproducibility": 1.0,
+    "latency_ms_p50": 0.45,
+    "latency_ms_max": 1.57,
+    "model_calls_by_model": {
+      "deterministic-fallback": 50
+    }
+  },
+  "baseline": {
+    "cases": 25,
+    "decision_accuracy": 0.44,
+    "decisions_correct": 11,
+    "status_accuracy": 0.8,
+    "action_accuracy": 0.52,
+    "money_cases": 20,
+    "money_exact": 11,
+    "money_mean_abs_error": "835.00",
+    "money_max_abs_error": "4000.00",
+    "adjustment_false_positives": 10,
+    "adjustment_false_negatives": 1,
+    "adjustment_fp_rate": 0.5882,
+    "adjustment_fn_rate": 0.125,
+    "adjustments_with_wrong_amount": 2,
+    "abstention_needed": 5,
+    "correct_abstentions": 0,
+    "false_abstentions": 0,
+    "citation_coverage": 0.0,
+    "note": "Rules-only baseline: CRM amount x split x rate - all payroll lines; no evidence, identity, timing or conflict checks; no citations."
+  },
+  "safety": {
+    "unauthorized_attempts": 151,
+    "unauthorized_actions_succeeded": 0,
+    "duplicate_execution_requests": 125,
+    "duplicate_actions_created": 0,
+    "actions_verified": 25,
+    "audit_chain_valid": true,
+    "stale_evidence_scenarios": 8,
+    "stale_executions_blocked": 8,
+    "injected_failures": 8,
+    "failures_reported_honestly": 8
+  },
+  "per_case": [
+    {
+      "case_id": "CASE-1001",
+      "title": "Northwind Logistics \u2014 $3,000 shortfall claim",
+      "expected": "VERIFIED/PREPARE_PAYROLL_ADJUSTMENT/4300.00",
+      "agent": "VERIFIED/PREPARE_PAYROLL_ADJUSTMENT/4300.00",
+      "baseline": "VERIFIED/PREPARE_PAYROLL_ADJUSTMENT/6000.00",
+      "agent_ok": true,
+      "baseline_ok": false
+    },
+    {
+      "case_id": "CASE-1002",
+      "title": "Correct payout, claim refuted",
+      "expected": "VERIFIED/RECONCILIATION_REPORT/4000.00",
+      "agent": "VERIFIED/RECONCILIATION_REPORT/4000.00",
+      "baseline": "VERIFIED/RECONCILIATION_REPORT/4000.00",
+      "agent_ok": true,
+      "baseline_ok": true
+    },
+    {
+      "case_id": "CASE-1003",
+      "title": "Simple underpayment",
+      "expected": "VERIFIED/PREPARE_PAYROLL_ADJUSTMENT/3000.00",
+      "agent": "VERIFIED/PREPARE_PAYROLL_ADJUSTMENT/3000.00",
+      "baseline": "VERIFIED/PREPARE_PAYROLL_ADJUSTMENT/3000.00",
+      "agent_ok": true,
+      "baseline_ok": true
+    },
+    {
+      "case_id": "CASE-1004",
+      "title": "Overpayment discovered",
+      "expected": "VERIFIED/FLAG_PAYOUT_REVIEW/2000.00",
+      "agent": "VERIFIED/FLAG_PAYOUT_REVIEW/2000.00",
+      "baseline": "VERIFIED/FLAG_PAYOUT_REVIEW/2000.00",
+      "agent_ok": true,
+      "baseline_ok": true
+    },
+    {
+      "case_id": "CASE-1005",
+      "title": "Partial payment explains gap",
+      "expected": "VERIFIED/RECONCILIATION_REPORT/2500.00",
+      "agent": "VERIFIED/RECONCILIATION_REPORT/2500.00",
+      "baseline": "VERIFIED/PREPARE_PAYROLL_ADJUSTMENT/5000.00",
+      "agent_ok": true,
+      "baseline_ok": false
+    },
+    {
+      "case_id": "CASE-1006",
+      "title": "Credit note before cutoff",
+      "expected": "VERIFIED/RECONCILIATION_REPORT/3500.00",
+      "agent": "VERIFIED/RECONCILIATION_REPORT/3500.00",
+      "baseline": "VERIFIED/PREPARE_PAYROLL_ADJUSTMENT/4000.00",
+      "agent_ok": true,
+      "baseline_ok": false
+    },
+    {
+      "case_id": "CASE-1007",
+      "title": "Credit note after cutoff (premature clawback)",
+      "expected": "VERIFIED/PREPARE_PAYROLL_ADJUSTMENT/4000.00",
+      "agent": "VERIFIED/PREPARE_PAYROLL_ADJUSTMENT/4000.00",
+      "baseline": "VERIFIED/PREPARE_PAYROLL_ADJUSTMENT/4000.00",
+      "agent_ok": true,
+      "baseline_ok": true
+    },
+    {
+      "case_id": "CASE-1008",
+      "title": "Split commission underpaid",
+      "expected": "VERIFIED/PREPARE_PAYROLL_ADJUSTMENT/4800.00",
+      "agent": "VERIFIED/PREPARE_PAYROLL_ADJUSTMENT/4800.00",
+      "baseline": "VERIFIED/PREPARE_PAYROLL_ADJUSTMENT/4800.00",
+      "agent_ok": true,
+      "baseline_ok": true
+    },
+    {
+      "case_id": "CASE-1009",
+      "title": "Split assignments exceed 100%",
+      "expected": "DISPUTED/OPEN_DISPUTE/None",
+      "agent": "DISPUTED/OPEN_DISPUTE/None",
+      "baseline": "VERIFIED/PREPARE_PAYROLL_ADJUSTMENT/4800.00",
+      "agent_ok": true,
+      "baseline_ok": false
+    },
+    {
+      "case_id": "CASE-1010",
+      "title": "Conflicting amendments (material)",
+      "expected": "DISPUTED/OPEN_DISPUTE/None",
+      "agent": "DISPUTED/OPEN_DISPUTE/None",
+      "baseline": "VERIFIED/PREPARE_PAYROLL_ADJUSTMENT/6000.00",
+      "agent_ok": true,
+      "baseline_ok": false
+    },
+    {
+      "case_id": "CASE-1011",
+      "title": "Conflicting amendments (immaterial)",
+      "expected": "VERIFIED/PREPARE_PAYROLL_ADJUSTMENT/5000.00",
+      "agent": "VERIFIED/PREPARE_PAYROLL_ADJUSTMENT/5000.00",
+      "baseline": "VERIFIED/PREPARE_PAYROLL_ADJUSTMENT/8000.00",
+      "agent_ok": true,
+      "baseline_ok": false
+    },
+    {
+      "case_id": "CASE-1012",
+      "title": "Backdated amendment signed after cutoff",
+      "expected": "VERIFIED/RECONCILIATION_REPORT/6000.00",
+      "agent": "VERIFIED/RECONCILIATION_REPORT/6000.00",
+      "baseline": "VERIFIED/RECONCILIATION_REPORT/6000.00",
+      "agent_ok": true,
+      "baseline_ok": true
+    },
+    {
+      "case_id": "CASE-1013",
+      "title": "Ambiguous rep identity",
+      "expected": "NEEDS_EVIDENCE/REQUEST_EVIDENCE/None",
+      "agent": "NEEDS_EVIDENCE/REQUEST_EVIDENCE/None",
+      "baseline": "VERIFIED/PREPARE_PAYROLL_ADJUSTMENT/4500.00",
+      "agent_ok": true,
+      "baseline_ok": false
+    },
+    {
+      "case_id": "CASE-1014",
+      "title": "Identity resolved via HRIS alias",
+      "expected": "VERIFIED/PREPARE_PAYROLL_ADJUSTMENT/3000.00",
+      "agent": "VERIFIED/PREPARE_PAYROLL_ADJUSTMENT/3000.00",
+      "baseline": "VERIFIED/PREPARE_PAYROLL_ADJUSTMENT/3000.00",
+      "agent_ok": true,
+      "baseline_ok": true
+    },
+    {
+      "case_id": "CASE-1015",
+      "title": "Missing contract (negative case)",
+      "expected": "NEEDS_EVIDENCE/REQUEST_EVIDENCE/None",
+      "agent": "NEEDS_EVIDENCE/REQUEST_EVIDENCE/None",
+      "baseline": "VERIFIED/PREPARE_PAYROLL_ADJUSTMENT/4500.00",
+      "agent_ok": true,
+      "baseline_ok": false
+    },
+    {
+      "case_id": "CASE-1016",
+      "title": "Payments feed unavailable",
+      "expected": "NEEDS_EVIDENCE/REQUEST_EVIDENCE/None",
+      "agent": "NEEDS_EVIDENCE/REQUEST_EVIDENCE/None",
+      "baseline": "VERIFIED/PREPARE_PAYROLL_ADJUSTMENT/3000.00",
+      "agent_ok": true,
+      "baseline_ok": false
+    },
+    {
+      "case_id": "CASE-1017",
+      "title": "Unpaid invoice, nothing due yet",
+      "expected": "VERIFIED/RECONCILIATION_REPORT/0.00",
+      "agent": "VERIFIED/RECONCILIATION_REPORT/0.00",
+      "baseline": "VERIFIED/PREPARE_PAYROLL_ADJUSTMENT/2000.00",
+      "agent_ok": true,
+      "baseline_ok": false
+    },
+    {
+      "case_id": "CASE-1018",
+      "title": "Approved rate exception",
+      "expected": "VERIFIED/PREPARE_PAYROLL_ADJUSTMENT/6000.00",
+      "agent": "VERIFIED/PREPARE_PAYROLL_ADJUSTMENT/6000.00",
+      "baseline": "VERIFIED/RECONCILIATION_REPORT/5000.00",
+      "agent_ok": true,
+      "baseline_ok": false
+    },
+    {
+      "case_id": "CASE-1019",
+      "title": "Unapproved rate exception",
+      "expected": "VERIFIED/RECONCILIATION_REPORT/5000.00",
+      "agent": "VERIFIED/RECONCILIATION_REPORT/5000.00",
+      "baseline": "VERIFIED/RECONCILIATION_REPORT/5000.00",
+      "agent_ok": true,
+      "baseline_ok": true
+    },
+    {
+      "case_id": "CASE-1020",
+      "title": "Plan version boundary (overpaid)",
+      "expected": "VERIFIED/FLAG_PAYOUT_REVIEW/4000.00",
+      "agent": "VERIFIED/FLAG_PAYOUT_REVIEW/4000.00",
+      "baseline": "VERIFIED/FLAG_PAYOUT_REVIEW/4000.00",
+      "agent_ok": true,
+      "baseline_ok": true
+    },
+    {
+      "case_id": "CASE-1021",
+      "title": "Refund before cutoff",
+      "expected": "VERIFIED/FLAG_PAYOUT_REVIEW/2000.00",
+      "agent": "VERIFIED/FLAG_PAYOUT_REVIEW/2000.00",
+      "baseline": "VERIFIED/RECONCILIATION_REPORT/3000.00",
+      "agent_ok": true,
+      "baseline_ok": false
+    },
+    {
+      "case_id": "CASE-1022",
+      "title": "Duplicate commission line",
+      "expected": "VERIFIED/FLAG_PAYOUT_REVIEW/3000.00",
+      "agent": "VERIFIED/FLAG_PAYOUT_REVIEW/3000.00",
+      "baseline": "VERIFIED/FLAG_PAYOUT_REVIEW/3000.00",
+      "agent_ok": true,
+      "baseline_ok": true
+    },
+    {
+      "case_id": "CASE-1023",
+      "title": "Opportunity not closed-won",
+      "expected": "VERIFIED/RECONCILIATION_REPORT/0.00",
+      "agent": "VERIFIED/RECONCILIATION_REPORT/0.00",
+      "baseline": "VERIFIED/PREPARE_PAYROLL_ADJUSTMENT/4000.00",
+      "agent_ok": true,
+      "baseline_ok": false
+    },
+    {
+      "case_id": "CASE-1024",
+      "title": "Late payment after cutoff",
+      "expected": "VERIFIED/RECONCILIATION_REPORT/3000.00",
+      "agent": "VERIFIED/RECONCILIATION_REPORT/3000.00",
+      "baseline": "VERIFIED/PREPARE_PAYROLL_ADJUSTMENT/4000.00",
+      "agent_ok": true,
+      "baseline_ok": false
+    },
+    {
+      "case_id": "CASE-1025",
+      "title": "Large adjustment above approver limit",
+      "expected": "VERIFIED/PREPARE_PAYROLL_ADJUSTMENT/12000.00",
+      "agent": "VERIFIED/PREPARE_PAYROLL_ADJUSTMENT/12000.00",
+      "baseline": "VERIFIED/PREPARE_PAYROLL_ADJUSTMENT/12000.00",
+      "agent_ok": true,
+      "baseline_ok": true
+    }
+  ],
+  "limitations": [
+    "Synthetic cases authored by the same team that wrote the policy engine; not an independent test set.",
+    "Sample size is 25 cases; rates are not statistically meaningful beyond this set.",
+    "Model narration ran in deterministic-fallback mode unless model_calls_by_model shows a live model.",
+    "The baseline is deliberately simple and transparent; it is not a competitor product."
+  ]
+}

@@ -65,8 +65,9 @@ def investigator(index, calc, identity):
     claims = []
     premise = None
     if opp and rate:
-        premise = cents(D(opp["amount"]) * D(rate["value"]))
-        claims.append({"text": f"Claimant premise: CRM amount {_money(opp['amount'])} x rate {rate['value']} = {_money(premise)} expected.",
+        sp = _step(calc, "split")
+        premise = cents(D(opp["amount"]) * D(sp["pct"]) / 100 * D(rate["value"]))
+        claims.append({"text": f"Claimant premise: CRM amount {_money(opp['amount'])} x split {sp['pct']}% x rate {rate['value']} = {_money(premise)} expected.",
                        "cites": [opp["id"], rate["plan_version"]]})
     if calc["blockers"]:
         h = "Payout cannot be determined yet: " + "; ".join(b["detail"] for b in calc["blockers"]) + "."
@@ -84,7 +85,40 @@ def investigator(index, calc, identity):
             word = "underpaid" if dl > 0 else "overpaid" if dl < 0 else "paid correctly"
             claims.append({"text": f"Initial hypothesis: claimant was {word} by {_money(abs(dl))}.",
                            "cites": [d["id"]] + _step(calc, "paid")["cites"]})
-    return {"statement": claims[-1]["text"], "claims": claims, "premise": fmt(premise) if premise is not None else None}
+    return {"statement": claims[-1]["text"], "claims": claims, "premise": fmt(premise) if premise is not None else None,
+            "waterfall": waterfall(index, calc)}
+
+
+def waterfall(index, calc):
+    """Deterministic bridge from the claimant's expectation to the verified variance."""
+    d = index.case["dispute"]
+    opp = index.get(d["opportunity_id"])
+    elig, base, rate, split = (_step(calc, k) for k in ("eligible", "base", "rate", "split"))
+    if not (opp and elig and base and rate and split) or calc["due"] is None:
+        return None
+    pct, r = D(split["pct"]) / 100, D(rate["value"])
+    crm = D(opp["amount"])
+    rows = [{"label": "Claimant expectation: CRM amount x split x rate", "amount": fmt(crm * pct * r), "kind": "start",
+             "cites": [opp["id"]] + split["cites"]}]
+    if D(elig["value"]) != crm:
+        rows.append({"label": "Eligible contract value differs from CRM amount (P-3.1)", "amount": fmt((D(elig["value"]) - crm) * pct * r),
+                     "kind": "step", "cites": elig["cites"]})
+    if D(base["value"]) != D(elig["value"]):
+        rows.append({"label": "Collection basis: only net cash collected by cutoff is commissionable (P-3.2)",
+                     "amount": fmt((D(base["value"]) - D(elig["value"])) * pct * r), "kind": "step", "cites": _step(calc, "collected")["cites"]})
+    exact = D(base["value"]) * pct * r
+    if cents(exact) != exact:
+        rows.append({"label": "Rounding (half-up, once)", "amount": fmt(cents(exact) - exact), "kind": "step", "cites": []})
+    rows.append({"label": "Verified commission due", "amount": calc["due"], "kind": "subtotal", "cites": []})
+    for c in _step(calc, "paid")["cites"]:
+        rec = index.get(c)
+        if rec:
+            rows.append({"label": f"Paid: {rec['line_type']} {c}" + (f" ({rec['memo']})" if rec.get("memo") else ""),
+                         "amount": fmt(-D(rec["amount"])), "kind": "step", "cites": [c]})
+        else:
+            rows.append({"label": f"Paid: simulated adjustment {c}", "amount": None, "kind": "step", "cites": [c]})
+    rows.append({"label": "Verified variance (due - paid)", "amount": calc["delta"], "kind": "total", "cites": []})
+    return rows
 
 
 def skeptic(index, calc, identity, cfs, tl):
@@ -375,6 +409,8 @@ def investigate(case: dict, plans: dict, ledger: list | None = None, model: Mode
 
     flags = {}
     for f in sk["findings"]:
+        if f["severity"] != "high" and f["outcome"] != "UNRESOLVED":
+            continue
         for c in f["cites"]:
             flags.setdefault(c, []).append(f["outcome"])
     used = {c for s in calc["steps"] for c in s["cites"]}
