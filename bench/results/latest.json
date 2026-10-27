@@ -1,5 +1,5 @@
 {
-  "generated_at": "2026-10-27T09:19:16Z",
+  "generated_at": "2026-10-27T11:49:00Z",
   "sample_size": 30,
   "dataset": "synthetic, hand-labelled (bench/ground_truth.json)",
   "agent": {
@@ -26,8 +26,8 @@
     "unsupported_claims_dropped": 0,
     "unsupported_claim_rate_in_output": 0.0,
     "reproducibility": 1.0,
-    "latency_ms_p50": 3.37,
-    "latency_ms_max": 7.24,
+    "latency_ms_p50": 2.71,
+    "latency_ms_max": 7.61,
     "model_calls_by_model": {
       "deterministic-fallback": 60
     }
@@ -495,10 +495,10 @@
     },
     "latency_ms": {
       "runs": 150,
-      "p50": 3.503,
-      "p95": 5.693,
-      "p99": 6.607,
-      "max": 11.18
+      "p50": 3.118,
+      "p95": 5.159,
+      "p99": 5.833,
+      "max": 7.382
     },
     "efficiency": {
       "model_tokens": 0,
@@ -507,7 +507,7 @@
     },
     "memory": {
       "precedents_stored": 21,
-      "build_seconds": 0.719,
+      "build_seconds": 0.47,
       "cases_with_patterns": 21,
       "warm_precedent_hit_rate": 0.7143,
       "cold_precedent_hit_rate": 0.0,
@@ -516,9 +516,9 @@
       "self_retrieval_contamination": 0,
       "decisions_identical_cold_vs_warm": "30/30",
       "recall_latency_ms": {
-        "cold_p50": 0.149,
-        "warm_p50": 0.814,
-        "warm_p95": 0.959
+        "cold_p50": 0.079,
+        "warm_p50": 0.433,
+        "warm_p95": 0.569
       },
       "hmem_ledger": {
         "create": 21,
