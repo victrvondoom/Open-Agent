@@ -136,6 +136,23 @@ def make_handler(app: App):
                 return 200, {"ok": True}
             if method == "GET" and path == "/api/integrations":
                 return 200, integration_status()
+            if method == "POST" and path == "/api/integrations/check":
+                u = self._viewer()
+                from . import llm
+                demo = next((c for c in app.source.list_case_ids()), None)
+                r = app.svc.investigate(demo, use_model=True)
+                r.pop("_world", None)
+                calls = [f"Meterless World Model: {r['world_model']['entities']} entities ingested, cross-check "
+                         f"{'passed' if (r['world_model']['cross_check'] or {}).get('passed') else 'n/a'}"]
+                prov = sorted(set(r["sources_meta"]["provenance"].values()))
+                calls.append(f"sources: {', '.join(prov)}")
+                calls += [f"model {m['role']}: {m['status']}" + (f" ({m['error']})" if m.get("error") else "") for m in r["telemetry"]["model_calls"]]
+                if llm.config()["enabled"]:
+                    v = llm.verify_model()
+                    calls.append(f"/models: {'listed' if v['ok'] else v.get('reason')}")
+                app.svc.audit.append("INTEGRATION_CHECK", u["id"], case_id=demo)
+                return 200, {"checked_at": time.strftime("%H:%M:%S UTC", time.gmtime()), "case_id": demo, "calls": calls,
+                             "status": integration_status()}
             if method == "GET" and path == "/api/users":
                 return 200, [{"token": t, **{k: v for k, v in u.items() if k != "perms"}, "perms": sorted(u["perms"])}
                              for t, u in USERS.items()]

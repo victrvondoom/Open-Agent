@@ -124,6 +124,15 @@ class IntakeApiTests(unittest.TestCase):
         st, act = self.call("POST", f"/api/cases/{made['case_id']}/actions", "ana")
         self.assertEqual((st, act["state"]), (201, "AWAITING_APPROVAL"))
 
+    def test_integration_check_reports_runtime_state(self):
+        st, r = self.call("POST", "/api/integrations/check", "ana")
+        self.assertEqual(st, 200)
+        states = {row["sponsor"]: row["state"] for row in r["status"]["rows"]}
+        self.assertEqual(states["Meterless"], "LIVE")  # the in-process World Model really ran
+        self.assertIn(states["Zetaris"], ("FALLBACK", "LIVE", "UNAVAILABLE", "CONFIGURED_UNVERIFIED"))
+        self.assertTrue(any("World Model" in c for c in r["calls"]))
+        self.assertEqual(self.call("POST", "/api/integrations/check", "nobody")[0], 401)
+
     def test_benchmark_run_permission(self):
         self.assertEqual(self.call("POST", "/api/benchmark/run", "rep")[0], 403)
 

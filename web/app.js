@@ -29,7 +29,23 @@ function toast(msg, bad = false) {
   toast._t = setTimeout(() => t.classList.add("hidden"), 4200);
 }
 
+// ---------------------------------------------------------------- theme (cream / dark)
+function applyTheme(t) {
+  if (t) document.documentElement.dataset.theme = t; else delete document.documentElement.dataset.theme;
+  const dark = t ? t === "dark" : matchMedia("(prefers-color-scheme: dark)").matches;
+  const b = $("#theme");
+  if (b) { b.textContent = dark ? "☀" : "☾"; b.title = dark ? "Switch to the cream light theme" : "Switch to the dark theme"; }
+}
+function toggleTheme() {
+  const cur = document.documentElement.dataset.theme || (matchMedia("(prefers-color-scheme: dark)").matches ? "dark" : "light");
+  const next = cur === "dark" ? "light" : "dark";
+  localSet("pp-theme", next);
+  applyTheme(next);
+}
+
 async function boot() {
+  applyTheme(localGet("pp-theme"));
+  $("#theme").onclick = toggleTheme;
   state.users = await api("/api/users");
   const sel = $("#user");
   sel.innerHTML = state.users.map((u) => `<option value="${esc(u.token)}">${esc(u.name)} — ${esc(u.role)}</option>`).join("");
@@ -47,8 +63,38 @@ async function boot() {
 
 async function refreshIntegrations() {
   const integ = await api("/api/integrations");
+  state.integrations = integ;
+  const tiles = $("#integ-grid");
+  if (tiles) tiles.innerHTML = integrationTiles(integ);
   $("#integrations").innerHTML = integ.rows.filter((r) => r.state !== "N/A").map((r) =>
-    `<span class="chip st-${esc(r.state)}" title="${esc(r.capability + " — " + r.detail)}">${esc(r.sponsor)}: ${esc(r.state.replace(/_/g, " "))}</span>`).join("");
+    `<button class="chip st-${esc(r.state)}" data-jump="s-integ" title="${esc(r.capability + " — " + r.detail)}">${esc(r.sponsor)}: ${esc(r.state.replace(/_/g, " "))}</button>`).join("");
+  document.querySelectorAll("[data-jump]").forEach((el) => (el.onclick = () => { const t = document.getElementById(el.dataset.jump); if (t) t.scrollIntoView({ behavior: "smooth", block: "start" }); }));
+}
+
+const STATE_HELP = { LIVE: "a real execution or request succeeded in this process", CONFIGURED_UNVERIFIED: "configured; no successful call yet",
+  FALLBACK: "not configured; local / simulated path in use", UNAVAILABLE: "configured; the last attempt failed", "N/A": "not a runtime integration" };
+
+function integrationTiles(integ) {
+  return integ.rows.map((r) => `
+    <div class="itile st-${esc(r.state)}">
+      <div class="iname"><span>${esc(r.sponsor)}</span><span class="chip st-${esc(r.state)}" title="${esc(STATE_HELP[r.state] || "")}">${esc(r.state.replace(/_/g, " "))}</span></div>
+      <div class="icap">${esc(r.capability)}</div>
+      <div class="idet" title="${esc(r.detail)}">${esc(r.detail)}</div>
+    </div>`).join("");
+}
+
+async function runIntegrationCheck() {
+  const b = $("#integ-check");
+  b.disabled = true; b.textContent = "Checking…";
+  try {
+    const r = await api("/api/integrations/check", { method: "POST" });
+    state.integrations = r.status;
+    $("#integ-grid").innerHTML = integrationTiles(r.status);
+    $("#integ-last").textContent = `Checked ${r.checked_at}: ${r.calls.join(" · ")}`;
+    await refreshIntegrations();
+    toast("Integration check complete");
+  } catch (e) { toast(e.message, true); }
+  b.disabled = false; b.textContent = "Run live check";
 }
 
 // Open `preferred` if this user can see it, otherwise the first case in their queue.
@@ -77,7 +123,9 @@ async function openCase(id) {
   if (state.caseId !== id) state.lastErr = "";
   state.caseId = id;
   document.querySelectorAll(".qitem").forEach((el) => el.classList.toggle("active", el.dataset.case === id));
+  const seq = (state.openSeq = (state.openSeq || 0) + 1);
   const [data, sources] = await Promise.all([api(`/api/cases/${id}`), api(`/api/cases/${id}/sources`)]);
+  if (seq !== state.openSeq) return;  // a newer case was opened while this one loaded; don't render stale data
   state.data = data; state.sources = sources;
   render();
   refreshIntegrations().catch(() => {});
@@ -122,7 +170,7 @@ function render() {
   const step = (k) => c.steps.find((s) => s.key === k);
   const strongest = d.skeptic.findings.find((f) => f.id === d.skeptic.strongest);
   $("#main").innerHTML = `
-  <nav class="nav"><a href="#s-evidence">1 Evidence</a><a href="#s-reason">2 Hypothesis vs skeptic</a><a href="#s-calc">3 Calculation</a>
+  <nav class="nav"><a href="#s-integ">Integrations</a><a href="#s-evidence">1 Evidence</a><a href="#s-reason">2 Hypothesis vs skeptic</a><a href="#s-calc">3 Calculation</a>
     <a href="#s-cf">4 Counterfactuals</a><a href="#s-proof">5 Proof bundle</a><a href="#s-action">6 Action</a><a href="#s-audit">7 Receipt & audit</a></nav>
   <section class="hero">
     <div class="card">
@@ -155,6 +203,13 @@ function render() {
     </div>
   </section>
 
+  <section class="card integ" id="s-integ">
+    <h3><span>Sponsor integrations</span><span class="dim" style="text-transform:none;letter-spacing:0;font-weight:500">status is runtime truth — a mock never reads LIVE</span></h3>
+    <div class="integ-grid" id="integ-grid">${state.integrations ? integrationTiles(state.integrations) : ""}</div>
+    <div class="integ-foot"><span class="dim" id="integ-last">Meterless World Model on this case: ${esc(d.world_model.entities)} entities · ${esc(d.world_model.relationships)} bitemporal edges · cross-check ${d.world_model.cross_check ? (d.world_model.cross_check.passed ? "passed" : "FAILED") : "n/a"}</span>
+      <button id="integ-check" class="ghost">Run live check</button></div>
+  </section>
+
   <section class="card full" id="s-evidence">
     <h3><span><span class="n">1</span>Temporal evidence — timeline & graph</span><span class="dim" style="text-transform:none;letter-spacing:0">click any record to inspect the original</span></h3>
     <div class="timeline"><div class="tl">${d.timeline.map((e) => e.type === "cutoff"
@@ -163,9 +218,9 @@ function render() {
          <div class="ty">${esc(e.type.replace("_", " "))}</div><div class="mono">${esc(e.record_id)}</div>
          <div class="mono dim">${e.amount ? money(e.amount) : ""}</div>${e.flags.map((f) => `<div class="flag">⚑ ${esc(f.replace(/_/g, " "))}</div>`).join("")}</div>`).join("")}</div></div>
     <div class="graph-wrap" id="graph"></div>
-    <div class="legend"><span><i style="border-color:#60a5fa"></i>used in calculation</span><span><i style="border-color:#f87171"></i>skeptic: confirmed issue</span>
-      <span><i style="border-color:#fbbf24"></i>skeptic: tested & ruled out</span><span><i style="border-color:#c4b5fd;border-style:dashed"></i>unresolved</span>
-      <span><i style="border-color:#34d399"></i>identity link (resolved)</span></div>
+    <div class="legend"><span><i class="l-used"></i>used in calculation</span><span><i class="l-conf"></i>skeptic: confirmed issue</span>
+      <span><i class="l-ruled"></i>skeptic: tested & ruled out</span><span><i class="l-unres"></i>unresolved</span>
+      <span><i class="l-id"></i>identity link (resolved)</span></div>
     <h4>Identity resolution — ${pill(d.identity.status === "RESOLVED" ? "VERIFIED" : "NEEDS_EVIDENCE", d.identity.status)}</h4>
     <table><tr><th>HRIS employee</th><th>CRM candidate</th><th>Strength</th><th>Signals</th></tr>
       ${d.identity.candidates.map((x) => `<tr><td>${cite(d.identity.employee_id)}</td><td>${cite(x.crm_user_id)} ${esc(x.name)}</td><td>${pill(x.strength === "STRONG" ? "VERIFIED" : "UNDETERMINED", x.strength)}</td><td>${x.signals.map(esc).join("; ")}</td></tr>`).join("") || `<tr><td colspan="4" class="dim">No candidates</td></tr>`}
@@ -210,13 +265,13 @@ function render() {
 
   <section class="grid2" id="s-proof">
     <div class="card"><h3><span><span class="n">5</span>Proof bundle</span></h3>
-      ${d.bundle.map((b) => `<div class="claim" style="border-color:var(--${b.status === "VERIFIED" ? "verified" : b.status === "DISPUTED" ? "disputed" : b.status === "REJECTED" ? "rejected" : "needs"})">
+      ${d.bundle.map((b) => `<div class="claim c-${esc(b.status)}">
         <div class="qrow"><span class="st">${esc(b.statement)}</span>${pill(b.status)}</div>
         <div class="dim">supporting</div><div>${b.supporting.map((i) => cite(i)).join("")}</div>
         ${b.contradicting.length ? `<div class="dim">contradicting / excluded</div><div>${b.contradicting.map((i) => cite(i, "x")).join("")}</div>` : ""}
         <div class="dim">policy: ${b.policy.map(esc).join(", ")}</div>
         ${b.assumptions.length ? `<div class="dim">assumptions: ${b.assumptions.map(esc).join("; ")}</div>` : ""}
-        ${b.open_questions.length ? `<div style="color:var(--warn)">open: ${b.open_questions.map(esc).join("; ")}</div>` : ""}</div>`).join("")}
+        ${b.open_questions.length ? `<div class="warn-text">open: ${b.open_questions.map(esc).join("; ")}</div>` : ""}</div>`).join("")}
     </div>
     <div class="card"><h3><span>Policy verifier — invariants</span></h3>
       <table class="inv">${d.verification.invariants.map((i) => `<tr><td>${i.passed ? "✅" : "❌"}</td><td>${esc(i.invariant)}<div class="dim mono">${esc(i.detail)}</div></td></tr>`).join("")}</table>
@@ -229,6 +284,7 @@ function render() {
   <section class="card full" id="s-audit"><h3><span><span class="n">7</span>Execution receipt & audit trail</span><span id="chain"></span></h3><div id="receipt"></div><div class="audit" id="audit"></div></section>
   `;
   drawGraph(d.graph);
+  $("#integ-check").onclick = runIntegrationCheck;
   wireActions();
   loadAudit();
 }
@@ -239,12 +295,12 @@ function cfTable(d) {
   const max = Math.max(1, ...rows.map((r) => Math.abs(Number(r.delta_change || 0))));
   const c = d.calculation;
   return `<table><tr><th>Scenario (hypothetical)</th><th class="num">Due</th><th class="num">Paid</th><th class="num">Variance</th><th class="num">Change vs actual</th><th></th><th>Facts changed</th></tr>
-    <tr style="background:#0c211b"><td><b>ACTUAL (observed evidence)</b></td><td class="num">${money(c.due)}</td><td class="num">${money(c.paid)}</td><td class="num">${signed(c.delta)}</td><td class="num">—</td><td></td><td></td></tr>
+    <tr class="row-actual"><td><b>ACTUAL (observed evidence)</b></td><td class="num">${money(c.due)}</td><td class="num">${money(c.paid)}</td><td class="num">${signed(c.delta)}</td><td class="num">—</td><td></td><td></td></tr>
     ${rows.map((r) => {
       const v = Number(r.delta_change || 0), w = Math.abs(v) / max * 50;
       return `<tr><td><b>${esc(r.title)}</b><div class="dim">${esc(r.question)}</div></td><td class="num">${money(r.due)}</td><td class="num">${money(r.paid)}</td>
       <td class="num">${signed(r.delta)}</td><td class="num ${v > 0 ? "pos" : v < 0 ? "neg" : ""}">${r.delta_change === null ? (r.blocked ? "blocked" : "—") : signed(r.delta_change)}</td>
-      <td><div class="bar"><span style="left:${v >= 0 ? 50 : 50 - w}%;width:${w}%;background:${v >= 0 ? "var(--verified)" : "var(--bad)"}"></span></div></td>
+      <td><div class="bar"><span class="${v >= 0 ? "up" : "down"}" style="left:${v >= 0 ? 50 : 50 - w}%;width:${w}%"></span></div></td>
       <td>${r.changed_facts.map((i) => cite(i)).join("")}</td></tr>`;
     }).join("")}</table>`;
 }
@@ -254,7 +310,7 @@ const MONEY_KEYS = new Set(["eligible", "collected", "base", "due", "paid", "del
 function waterfallCard(w) {
   if (!w) return "";
   return `<h4>Reconciliation: claimant expectation → verified variance</h4><table>${w.map((r) => `
-    <tr style="${r.kind !== "step" ? "font-weight:700;background:#0f1623" : ""}"><td>${esc(r.label)} ${r.cites.map((i) => cite(i)).join("")}</td>
+    <tr class="${r.kind !== "step" ? "row-total" : ""}"><td>${esc(r.label)} ${r.cites.map((i) => cite(i)).join("")}</td>
     <td class="num ${r.kind === "step" ? (Number(r.amount) < 0 ? "neg" : "pos") : ""}">${r.kind === "step" ? signed(r.amount) : money(r.amount)}</td></tr>`).join("")}</table>`;
 }
 
@@ -332,7 +388,7 @@ async function loadAudit() {
 function drawGraph(g) {
   const cols = ["disputes", "hris", "crm", "clm", "billing", "comp", "payroll", "sim_ledger"];
   const names = { disputes: "dispute", hris: "HRIS", crm: "CRM", clm: "Contracts", billing: "Billing", comp: "Comp plan", payroll: "Payroll", sim_ledger: "Simulated ledger" };
-  const W = 150, NW = 132, NH = 40, GAP = 10, TOP = 26;
+  const W = 172, NW = 154, NH = 40, GAP = 10, TOP = 26;
   const pos = {};
   const byCol = {};
   g.nodes.forEach((n) => (byCol[n.system] = byCol[n.system] || []).push(n));
@@ -350,8 +406,8 @@ function drawGraph(g) {
   const nodes = g.nodes.filter((n) => pos[n.id]).map((n) => {
     const p = pos[n.id];
     return `<g class="node ${n.used_in_calculation ? "used" : ""} ${outcome(n)}" data-rec="${esc(n.id)}" transform="translate(${p.x},${p.y})">
-      <rect width="${NW}" height="${NH}"></rect><text x="8" y="16" style="font-weight:600">${esc(n.id.length > 19 ? n.id.slice(0, 18) + "…" : n.id)}</text>
-      <text x="8" y="31" style="fill:#8a96a8">${esc(n.type.replace("_", " "))}${n.amount ? " · " + esc(money(n.amount)) : ""}</text><title>${esc(n.id)} ${esc(n.label)}</title></g>`;
+      <rect width="${NW}" height="${NH}"></rect><text x="8" y="16" style="font-weight:600">${esc(n.id.length > 22 ? n.id.slice(0, 21) + "…" : n.id)}</text>
+      <text x="8" y="31" class="sub">${esc(n.type.replace("_", " "))}${n.amount ? " · " + esc(money(n.amount)) : ""}</text><title>${esc(n.id)} ${esc(n.label)}</title></g>`;
   }).join("");
   const heads = cols.map((c, ci) => `<text class="col" x="${8 + ci * W}" y="14">${esc(names[c])}</text>`).join("");
   $("#graph").innerHTML = `<svg width="${cols.length * W + 10}" height="${maxY + 10}">${heads}${edges}${nodes}</svg>`;

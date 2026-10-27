@@ -30,6 +30,7 @@ Configuration lives in `.env.example`, with placeholders only. `SAMPLE_MODE=true
 - **File your own dispute:** click **+ New dispute** in the Decision Room, or `POST /api/cases`. The form is prefilled from the real records of the case you're viewing; change any value (amounts, dates, identities, split, amendment, payments, credit notes, payroll lines, exceptions). The new case goes through the same pipeline: evidence, World Model, skeptic, counterfactuals, approval gate. It is stored in `var/cases/`.
 - **Re-run the benchmark** from the **Benchmark** panel or `POST /api/benchmark/run`.
 - **Numbers are generated, not typed.** The deck at `/deck` reads them live from the API. Its embedded copy, the PDF, the README benchmark and demo tables, and the video captions (`scripts/record_demo.js`) are all regenerated from real runs.
+- **Decision Room UI:** cream-and-white light theme and a warm dark theme (toggle in the header; follows the system setting by default), elevated cards, and a **Sponsor integrations** panel whose tiles show each integration's runtime state. **Run live check** makes the real calls and refreshes them.
 - **Configuration is data:** users and roles in `data/users.json`, plan, rates and approval limits in `data/plans.json`.
 
 **Sample inputs and outputs:** [`samples/`](samples/) has three cases (the demo, the missing-evidence refusal, and a material contradiction), each with its full JSON output and agent traces. Regenerate them with `python3 run.py --samples`.
@@ -133,6 +134,7 @@ Calls carry `X-Demo-User: ana|fin|ctl|ops|rep`. This is demo-only authentication
 | POST | `/api/actions/{id}/decision` | `{"decision":"approve"\|"reject"}` (approver within limits) |
 | POST | `/api/actions/{id}/execute` | header `Idempotency-Key` (payroll ops / controller) |
 | POST | `/api/cases/{id}/simulate/late-event` · `/api/sim/fail-next` | stale-evidence and failure demos |
+| POST | `/api/integrations/check` | one real investigation exercising every configured sponsor service; returns runtime states |
 | GET | `/api/intake/template?from=CASE-…` | intake form prefilled from a case's real records |
 | POST | `/api/cases` | file a new dispute (analyst; validated, 422 on bad input) |
 | POST | `/api/benchmark/run` | re-run the benchmark (analyst / controller) |

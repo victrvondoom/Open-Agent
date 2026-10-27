@@ -3,13 +3,15 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="color-scheme" content="light dark">
+  <script>try { const t = localStorage.getItem("pp-theme"); if (t) document.documentElement.dataset.theme = t; } catch (e) {}</script>
   <title>PayProof Decision Room</title>
   <link rel="stylesheet" href="app.css">
 </head>
 <body>
 <header class="top">
   <div class="brand">
-    <span class="logo">◆</span>
+    <span class="logo" aria-hidden="true">◆</span>
     <div><div class="name">PeoplePay-360 <span class="dim">/</span> PayProof</div>
       <div class="sub">Proof-carrying commission resolution · synthetic data only</div></div>
   </div>
@@ -21,6 +23,7 @@
     <button id="new-case" class="primary" title="File a new dispute; the full pipeline runs on it">+ New dispute</button>
     <button id="bench" class="ghost" title="Benchmark results (re-runnable)">Benchmark</button>
     <button id="reset" class="ghost" title="Clear actions, ledger and injected events">Reset demo</button>
+    <button id="theme" class="ghost icon" aria-label="Toggle light / dark theme">☾</button>
   </div>
 </header>
 <div class="layout">
