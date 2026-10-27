@@ -30,6 +30,8 @@ def run_live_check(app) -> dict:
         w = wm.WorldModel("live-check")
         first, second = wm.ingest_case(w, case), wm.ingest_case(w, case)
         ok = first["changed"] and not second["changed"]
+        if ok:
+            record("world_model", None, live_checks=1)
         return ok, f"ingested {first['entities']} entities / {first['relationships']} edges; re-ingest changed={second['changed']} (must be False)"
 
     def hmem():
@@ -37,8 +39,10 @@ def run_live_check(app) -> dict:
         m = h.add("live check precedent: duplicate clawback reversed", "live-check", tags=["SK-DUP"])
         got = h.query("duplicate clawback", threshold=0)["memories"]
         live = app.svc.memory.hmem.store.all()
-        record("hmem", None)
-        return (bool(got) and got[0]["memory"]["id"] == m["id"]), f"probe write+query ok; live store holds {len(live)} verified precedents"
+        ok = bool(got) and got[0]["memory"]["id"] == m["id"]
+        if ok:
+            record("hmem", None, live_checks=1)
+        return ok, f"probe write+query {'ok' if ok else 'did not return the probe'}; live store holds {len(live)} verified precedents"
 
     def scout():
         c = app.svc.scout.decide("action.propose", USERS["ana"], {"case_id": demo})

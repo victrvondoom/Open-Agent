@@ -71,6 +71,15 @@ class ContractTests(unittest.TestCase):
         with self.assertRaises(ScoutError):
             self.scout.verify(None, "payroll.sim.write")
 
+    def test_contract_is_bound_to_intent_and_subject(self):
+        c = self.scout.decide("action.approve", USERS["fin"], {"action_id": "A"})
+        with self.assertRaises(ScoutError) as cm:
+            self.scout.verify(c, "action.decide", intent="action.execute")
+        self.assertEqual(cm.exception.code, "WRONG_INTENT")
+        with self.assertRaises(ScoutError) as cm:
+            self.scout.verify(c, "action.decide", intent="action.approve", user_id=USERS["ctl"]["id"])
+        self.assertEqual(cm.exception.code, "WRONG_SUBJECT")
+
     def test_policy_gate(self):
         with self.assertRaises(ScoutError) as cm:
             self.scout.decide("action.execute", USERS["rep"])

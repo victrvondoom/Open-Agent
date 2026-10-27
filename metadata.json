@@ -4,12 +4,17 @@
   "summary": "Proof-carrying commission dispute resolution. For a sales rep's pay dispute it reconciles HRIS, CRM, contracts, billing, comp plan and payroll records. It computes what should have been paid with deterministic decimal code, has a skeptic try to falsify the explanation, replays counterfactuals, and proposes one approval-gated action that executes at most once on a simulated payroll adapter and is verified afterwards. Missing or contradictory evidence means it abstains.",
   "track": "Track 02 \u2014 The Agent That Can Explain Why",
   "licence": "unspecified",
-  "data": "synthetic only (25 hand-labelled dispute cases); no real people, money or payroll systems",
+  "data": "synthetic only (30 hand-labelled dispute cases, 5 of them adversarial, plus a 30-text security corpus); no real people, money or payroll systems",
   "agents": [
     {
       "step": "investigator",
       "role": "assembles evidence, proposes the initial explanation and the reconciliation waterfall",
       "model": "code; optional Nemotron phrasing"
+    },
+    {
+      "step": "scout guard",
+      "role": "Meterless Scout Intent: injection check on every retrieved record and on intake text; quarantined records never reach the model and escalate the action to controller approval",
+      "model": "code"
     },
     {
       "step": "skeptic",
@@ -35,28 +40,40 @@
       "step": "action service",
       "role": "backend authorization, approval limits, segregation of duties, stale-evidence gate, simulated execution, postcondition re-investigation, hash-chained audit",
       "model": "code"
+    },
+    {
+      "step": "precedent memory",
+      "role": "Meterless H-MEM: stores only human-approved, postcondition-verified outcomes; recalls precedents from other cases for the reviewer; never feeds the calculation",
+      "model": "code"
     }
   ],
   "sponsor_technology": {
     "meterless": {
       "status": "working (in-process)",
       "engines": [
-        "World Model"
+        "World Model",
+        "H-MEM",
+        "Scout Intent"
       ],
-      "where": "payproof/world_model.py \u2014 Python implementation of the Meterless World Model reference (stable ids, merge banding, provenance-required writes, bitemporal edges, idempotent ingest, ordered audit)",
+      "where": {
+        "World Model": "payproof/world_model.py \u2014 Python implementation of the Meterless World Model reference (stable ids, merge banding, provenance-required writes, bitemporal edges, idempotent ingest, ordered audit)",
+        "H-MEM": "payproof/hmem.py \u2014 Python port of the official H-MEM reference (hybrid retrieval formula, trust ledger, feedback deltas, conflict gate, sleep guardrails, dreaming approval boundary) plus PayProof's PrecedentMemory",
+        "Scout Intent": "payproof/scout.py \u2014 PayProof implementation of the Scout Intent spec (intent registry, injection / RBAC / PII guard, capability scope, HMAC-signed execution contracts with a 5-minute TTL); the spec publishes no reference code"
+      },
       "used_for": [
         "evidence intake: every investigation ingests the case's source records with provenance (source system, recorded time) and typed bitemporal relationships (validFrom = effective time)",
         "verifier cross-check: the World Model's as-of-cutoff graph view must contain exactly the cash events the policy engine counted",
         "model context builder: the Nemotron prompt is built from the World Model neighbourhood of the disputed opportunity",
         "stale-evidence gate: actions snapshot the World Model at proposal; approval and execution re-ingest and expire the action if ingest reports changed=true",
-        "judge evidence: World Model audit written as JSONL to logs/ and samples/logs/"
+        "judge evidence: World Model audit written as JSONL to logs/ and samples/logs/",
+        "H-MEM verified-precedent memory: only an approved action whose postcondition passed becomes a precedent (refs: case, action, receipt, proof hash); investigations recall precedents from other cases only, shown to the reviewer with a consistency check",
+        "Scout execution contracts: the action service refuses to propose, approve or execute without a valid, unexpired contract whose capabilities cover the operation",
+        "Scout guard: injection text in user intake is refused (422); injection text in retrieved source records is quarantined, kept out of the model context, raised as a security finding and escalates the action to controller approval"
       ],
-      "verification": "tests/test_world_model.py: one-to-one Python port of the official 8-check conformance suite (engines/world-model/conformance/runner.ts) \u2014 8/8 pass. The official TypeScript runner itself was not run in the build environment.",
+      "verification": "World Model: tests/test_world_model.py is a one-to-one Python port of the official 8-check conformance suite (engines/world-model/conformance/runner.ts) \u2014 8/8 pass. H-MEM: tests/test_hmem.py ports the official conformance runner (engines/hmem/conformance/runner.ts) and runs the official vectors file copied unchanged \u2014 13/13 pass. Scout Intent: tests/test_scout.py covers the guard, contract signing/expiry/scope/subject checks and the action path; benchmark security evaluation blocks 15/15 corpus attacks with 0/15 benign false positives and detects 4/4 planted record injections. The official TypeScript runners themselves were not run in the build environment.",
       "not_used": [
         "Meterless Nightshift",
-        "H-MEM",
-        "Markovian",
-        "Scout Intent"
+        "Markovian"
       ]
     },
     "zetaris": {
@@ -82,7 +99,26 @@
     "benchmark": "python3 -m payproof.bench",
     "file_dispute": "POST /api/cases (or + New dispute in the UI)",
     "rerun_benchmark": "POST /api/benchmark/run",
-    "deck_live": "GET /deck"
+    "deck_live": "GET /deck",
+    "live_check": "POST /api/integrations/check (Run live check in the UI)",
+    "dossier": "GET /api/cases/{id}/dossier",
+    "escalate": "POST /api/actions/{id}/escalate"
   },
-  "pre_existing_components": "none; all code and synthetic data were created on 2026-10-27, inside the build window"
+  "pre_existing_components": "none; all code and synthetic data were created on 2026-10-27, inside the build window",
+  "evaluation": {
+    "command": "python3 -m payproof.bench",
+    "report": "docs/BENCHMARK.md",
+    "results": "bench/results/latest.json",
+    "systems": [
+      "rules_baseline",
+      "no_critic",
+      "no_world_model",
+      "no_scout",
+      "full"
+    ],
+    "blocked": [
+      "single_pass_llm (no model credentials / egress)",
+      "federated Zetaris queries (no instance / credentials)"
+    ]
+  }
 }

@@ -17,7 +17,7 @@ from pathlib import Path
 ROOT = Path(__file__).resolve().parent
 sys.path.insert(0, str(ROOT))
 
-from payproof import llm, sources  # noqa: E402
+from payproof import sources  # noqa: E402
 from payproof.integrations import integration_status  # noqa: E402
 from payproof.world_model import write_audit_jsonl  # noqa: E402
 from payproof.workflow import investigate  # noqa: E402
@@ -77,16 +77,21 @@ def run_case(case_id: str, run_label: str | None = None, logs_dir: Path = ROOT /
 
 
 def check_integrations() -> int:
+    from payproof.diagnostics import run_live_check
+    from payproof.server import App
     print("Checking sponsor integrations (one real call each where configured)...\n")
-    out = run_case("CASE-1001", "integration-check")  # exercises World Model, Zetaris (if configured), Nemotron (if configured)
-    if llm.config()["enabled"]:
-        print("NVIDIA /models:", json.dumps(llm.verify_model(), indent=1))
+    out = run_case("CASE-1001", "integration-check")  # full investigation: World Model, Scout, Zetaris + Nemotron if configured
+    live = run_live_check(App(audit_path=None))  # same diagnostics as the Decision Room's Run live check
     print("Sources:", json.dumps(out["output"]["artifacts"]["provenance"]))
     print("Model calls:", json.dumps(out["model_calls"]))
-    print()
+    print("\nDiagnostics:")
+    for c in live["checks"]:
+        verdict = "ok" if c["ok"] else "FAILED" if c["ran"] else "not run"
+        print(f"  {verdict:<8} {c['integration']:<24} {c['latency_ms']:>8} ms  {c['detail']}")
+    print("\nRuntime state:")
     for row in integration_status()["rows"]:
-        print(f"  {row['state']:<22} {row['sponsor']:<16} {row['detail']}")
-    return 0
+        print(f"  {row['state']:<22} {row['sponsor']:<24} {row['detail']}")
+    return 1 if any(c["ran"] and not c["ok"] for c in live["checks"]) else 0
 
 
 def write_samples():

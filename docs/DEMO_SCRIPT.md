@@ -1,24 +1,29 @@
-# Demo script (target 3:30, hard limit 4:00)
+# Demo script (recorded: 3:46, hard limit 4:00)
 
-**Setup.** Run `python3 run.py`, open http://127.0.0.1:8360, click **Reset demo** and act as **Ana Lopez — analyst**. Don't show API keys or `.env` on screen.
+**Setup.** Run `python3 run.py` and open http://127.0.0.1:8360. Click **Reset demo** and act as **Ana Lopez — analyst**. Don't show API keys or `.env` on screen.
 
-A recording-ready capture of this exact flow is at `docs/demo/payproof-demo.mp4`. It is produced from the real app by `scripts/record_demo.js`, with caption bars added as narration. Every number, record id and status in the captions is read from the live API at recording time. Voice-over is optional: the captions carry the script.
+`docs/demo/payproof-demo.mp4` captures this exact flow from the real app. It is produced by `scripts/record_demo.js`, with caption bars added as narration. Every number, record id, status and live-check result in the captions is read from the live API or the rendered page at recording time. Voice-over is optional: the captions carry the script.
 
 | Time | Screen | Say / show |
 |---|---|---|
-| 0:00 | Case queue | "Sales-commission disputes: five systems, five answers. PayProof is for comp and payroll analysts. It proves what *should* have been paid before anyone touches payroll." |
-| 0:15 | CASE-1001 hero | "Maya claims $3,000 short on a $60k deal. Verified answer: $1,100. The status is VERIFIED and the claim is partially supported." |
-| 0:30 | 1 Evidence: timeline + graph | "Raw records from HRIS, CRM, contracts, billing, comp and payroll. PAY-44987 has a June value date but was recorded in July. The CN-0077 clawback appears twice. The CRM user 'M. Chen' links to Maya by email, not by name." Click PAY-44987 to open the unmodified record and its provenance. |
-| 0:55 | Run provenance panel | "Every record is ingested into a **Meterless World Model** with provenance and bitemporal edges: when it happened versus when a system recorded it. The verifier cross-checks the engine against the World Model's as-of-cutoff view, and here they match." |
-| 1:15 | 2 Hypothesis vs skeptic | "The waterfall runs from the $6,000 expectation through −$1,000 for the amendment and −$700 uncollected to $4,300 due, against $3,200 paid. The skeptic's strongest attack is to exclude the late-recorded payment, leaving only $200. It's tested by replay and ruled out by clause P-4.2. It also confirms the duplicate clawback." |
-| 1:45 | 3 Calculation | "Every number comes from deterministic Decimal code, with a rule and a citation. Excluded records are shown with reasons. The model, when enabled, only phrases text, and the validator drops uncited claims and invented amounts." |
-| 2:00 | 4 Counterfactuals | "These are hypothetical replays through the same engine. Recorded-date timing: −$900. No duplicate: −$200. The amendment changes nothing here because collections cap the base. Labelled hypothetical, never treated as events." |
-| 2:20 | 6 Action | Click **Propose** and point at the type, amount, permission, idempotency key and fingerprint. Switch to **Maya — sales_rep** and **Approve**: a 403 conflict-of-interest refusal from the backend. Switch to **Farah — finance_approver** and Approve. Switch to **Oskar — payroll_ops** and **Execute**. |
-| 2:55 | 7 Receipt | "It executes once on the simulated payroll ledger, then the case is independently re-investigated: paid $4,300, variance 0, postcondition passed. The hash chain is valid. Re-executing creates no duplicate." |
-| 3:10 | CASE-1015 | "The refusal case: no contract in CLM. Status is NEEDS_EVIDENCE and the only action is a request for evidence. The hypothetical shows what the contract would establish, without assuming it." |
-| 3:15 | **+ New dispute** (optional) | "Not a fixed demo: file any dispute. The form is prefilled from real records. Change a payroll line and watch the verdict change." |
-| 3:25 | Header chips | "Integration status is runtime truth. The Meterless World Model is live in-process. Zetaris and Nemotron show FALLBACK in this recording, and they say so. Benchmark: 25 hand-labelled cases, 25/25 versus 11/25 for a rules-only baseline. Zero unauthorized or duplicate actions." |
+| 0:00 | CASE-1001 hero | "Commission disputes: five systems, five answers. PayProof proves what *should* have been paid before anyone touches payroll." |
+| 0:10 | Hero | "Maya claims she is $3,000 short on a $60k deal. The verified variance is +$1,100: the claim is partially supported, and the proof is VERIFIED." |
+| 0:19 | **Trace** | Show the eight recorded stages: intake → policy → counterfactual → federation → hypothesis → guard → adversarial → decision. Each has its own timing. There are no loops. A human approval gate follows. |
+| 0:31 | 1 Evidence | "PAY-44987 has a June value date but was recorded in July. The CN-0077 clawback appears twice." Click PAY-44987 to open the unmodified record. |
+| 0:48 | Provenance | "There are 18 entities and 20 bitemporal edges in the **Meterless World Model**. The verifier cross-checks against its as-of-cutoff view." |
+| 0:59 | 2 Hypothesis vs skeptic | Walk the waterfall: $6,000 expected, −$1,000 amendment, −$700 uncollected, $4,300 due. Then the skeptic's strongest attack, the late-recorded payment: it is tested by replay and ruled out by P-4.2. |
+| 1:20 | 3 Calculation · 4 Counterfactuals | "Every number comes from Decimal code, with a rule and a citation. The counterfactuals are hypothetical replays through the same engine." |
+| 1:41 | 6 Action | Click **Propose**. The action carries its type, amount, permission, idempotency key, fingerprint and a **signed Scout contract**. As **Maya (rep)**, click Approve: a 403 conflict-of-interest refusal. **Farah (finance)** approves. **Oskar (payroll ops)** executes. |
+| 2:15 | 7 Receipt | "It executes once on the simulated ledger and is re-investigated: variance 0, postcondition passed, hash chain valid." |
+| 2:27 | **Precedents & security** on another case | "**Meterless H-MEM**: CASE-1001's verified outcome is now a precedent. This case shares a pattern and recalls it. Precedents inform the reviewer and never enter the calculation." Click **Compare**. |
+| 2:48 | CASE-1026 | "**Meterless Scout**: the payroll memo carries an embedded instruction. It is quarantined, kept out of the model and flagged. The action escalates to controller approval." |
+| 3:09 | CASE-1015 | "No contract in CLM, so the status is NEEDS_EVIDENCE. The only action is a request for evidence. No money moves." |
+| 3:21 | **Integrations → Run live check** | "Real calls only. World Model, H-MEM and Scout pass. Zetaris and Nemotron are *not configured, not called*, and nothing is simulated in their place." |
+| 3:34 | Benchmark caption | The benchmark has 30 hand-labelled synthetic cases. PayProof gets 30/30, against 14/30 for rules-only and 28/30 without the skeptic. There were 0 unauthorized and 0 duplicate actions. The cases were written alongside the engine. |
 
-**Optional stale-evidence beat.** After approval, click **⚡ Inject late credit note**, then **Execute**. The backend answers `STALE_EVIDENCE: Meterless World Model ingest reported changed=True`, the action becomes EXPIRED, and nothing is written.
+**Optional beats.**
+- **Stale evidence:** after approval, click **⚡ Inject late credit note**, then **Execute**. The backend answers `STALE_EVIDENCE`, the action becomes EXPIRED, and nothing is written.
+- **Escalate:** a finance approver can click **Escalate** to require controller approval.
+- **Export dossier:** downloads the full decision record with its review-only disclaimer.
 
-> If you record with Zetaris or Nemotron configured, the header chips will read LIVE only after a real call succeeds. Re-record the last beat to match what they show.
+> If you record with Zetaris or Nemotron configured, the tiles and live check read LIVE only after a real call succeeds. Re-record so the captions match.

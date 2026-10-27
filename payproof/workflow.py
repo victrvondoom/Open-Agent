@@ -432,9 +432,9 @@ def investigate(case: dict, plans: dict, ledger: list | None = None, model: Mode
                                  "cites": []})
     cutoff = _step(calc, "cutoff")["value"]
     tl = timeline(index, cutoff)
-    cfs = replay(index, plans, identity, calc)
     stage("policy", "Deterministic policy engine", f"due {calc['due']} · paid {calc['paid']} · {len(calc['blockers'])} blocker(s) · "
           f"{len(calc['conflicts'])} conflict(s)")
+    cfs = replay(index, plans, identity, calc)
     stage("counterfactual", "Counterfactual replay", f"{len(cfs)} hypothetical scenarios replayed through the same engine")
 
     # Meterless World Model: canonical, provenance-stamped, bitemporal evidence state.
@@ -452,15 +452,15 @@ def investigate(case: dict, plans: dict, ledger: list | None = None, model: Mode
 
     hypo = investigator(index, calc, identity)
     stage("hypothesis", "Investigator", hypo["statement"])
-    sk = skeptic(index, calc, identity, cfs, tl)
     # Meterless Scout guard over retrieved documents: embedded instructions are quarantined.
-    if not opt["critic"]:
-        sk = {"findings": [], "strongest": None}
     t_sc = time.monotonic()
     quarantined = scan_records(case) if opt["scout"] else []
     if opt["scout"]:
         record("scout", (time.monotonic() - t_sc) * 1000, quarantined_records=len(quarantined))
     stage("guard", "Meterless Scout guard", f"{len(quarantined)} retrieved record(s) quarantined")
+    sk = skeptic(index, calc, identity, cfs, tl)
+    if not opt["critic"]:
+        sk = {"findings": [], "strongest": None}
     for q in quarantined:
         sk["findings"].append({"id": f"SK-INJ-{q['record_id']}", "title": f"Embedded instruction in {q['record_id']}.{q['field']} quarantined",
                                "detail": f"Scout injection check ({', '.join(q['kinds'])}) flagged source text. It is excluded from model "

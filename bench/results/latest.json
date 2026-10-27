@@ -1,5 +1,5 @@
 {
-  "generated_at": "2026-10-27T08:57:37Z",
+  "generated_at": "2026-10-27T09:19:16Z",
   "sample_size": 30,
   "dataset": "synthetic, hand-labelled (bench/ground_truth.json)",
   "agent": {
@@ -26,8 +26,8 @@
     "unsupported_claims_dropped": 0,
     "unsupported_claim_rate_in_output": 0.0,
     "reproducibility": 1.0,
-    "latency_ms_p50": 3.06,
-    "latency_ms_max": 6.21,
+    "latency_ms_p50": 3.37,
+    "latency_ms_max": 7.24,
     "model_calls_by_model": {
       "deterministic-fallback": 60
     }
@@ -40,7 +40,7 @@
     "action_accuracy": 0.5333,
     "money_cases": 24,
     "money_exact": 14,
-    "money_mean_abs_error": "716.6666666666666666666666667",
+    "money_mean_abs_error": "716.67",
     "money_max_abs_error": "4000.00",
     "adjustment_false_positives": 12,
     "adjustment_false_negatives": 1,
@@ -343,7 +343,9 @@
     "Synthetic cases authored by the same team that wrote the policy engine; not an independent test set.",
     "Sample size is 30 cases; rates are not statistically meaningful beyond this set.",
     "Model narration ran in deterministic-fallback mode unless model_calls_by_model shows a live model.",
-    "The baseline is deliberately simple and transparent; it is not a competitor product."
+    "The baseline is deliberately simple and transparent; it is not a competitor product.",
+    "The adversarial cases and the security corpus were written by the same author as the Scout guard; they measure the anticipated attacks, not unseen ones.",
+    "The single-pass-LLM baseline and federated Zetaris queries could not be run (no credentials or egress); they are reported as BLOCKED, not estimated."
   ],
   "evaluation": {
     "systems": {
@@ -493,10 +495,10 @@
     },
     "latency_ms": {
       "runs": 150,
-      "p50": 3.405,
-      "p95": 5.265,
-      "p99": 7.524,
-      "max": 8.649
+      "p50": 3.503,
+      "p95": 5.693,
+      "p99": 6.607,
+      "max": 11.18
     },
     "efficiency": {
       "model_tokens": 0,
@@ -505,7 +507,7 @@
     },
     "memory": {
       "precedents_stored": 21,
-      "build_seconds": 0.655,
+      "build_seconds": 0.719,
       "cases_with_patterns": 21,
       "warm_precedent_hit_rate": 0.7143,
       "cold_precedent_hit_rate": 0.0,
@@ -514,9 +516,9 @@
       "self_retrieval_contamination": 0,
       "decisions_identical_cold_vs_warm": "30/30",
       "recall_latency_ms": {
-        "cold_p50": 0.095,
-        "warm_p50": 0.532,
-        "warm_p95": 0.673
+        "cold_p50": 0.149,
+        "warm_p50": 0.814,
+        "warm_p95": 0.959
       },
       "hmem_ledger": {
         "create": 21,

@@ -26,6 +26,7 @@ const out = process.argv[2] || "demo-out";
   }, text);
   const scrollTo = async (sel) => { await p.evaluate((s) => document.querySelector(s).scrollIntoView({ behavior: "smooth", block: "start" }), sel); await wait(1.2); };
   const as = async (tok) => { await p.selectOption("#user", tok); await wait(1.2); };
+  const open = async (id) => { await p.click(`[data-case="${id}"]`); await p.waitForFunction((cid) => ((document.querySelector(".hero .mono") || {}).textContent || "").startsWith(cid), id); await wait(1); };
 
   await p.goto(BASE);
   await p.waitForSelector(".case-title");
@@ -38,53 +39,59 @@ const out = process.argv[2] || "demo-out";
   const negId = (queue.find((c) => c.tags.includes("negative_demo")) || queue.find((c) => c.proof_status === "NEEDS_EVIDENCE")).case_id;
   const d = await api(`/api/cases/${demoId}`);
   const neg = await api(`/api/cases/${negId}`);
-  const integ = await api("/api/integrations");
+  const all = {};
+  for (const q of queue) all[q.case_id] = q.case_id === demoId ? d : await api(`/api/cases/${q.case_id}`);
+  const quar = Object.values(all).find((x) => x.security.quarantined.length && x.proposed_action.type !== "REQUEST_EVIDENCE");
   const bench = await api("/api/benchmark");
   const usd = (v) => (Number(v) < 0 ? "−$" : "$") + Math.abs(Number(v)).toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
   const sg = (v) => (Number(v) > 0 ? "+" : Number(v) < 0 ? "" : "±") + usd(v);
+  const lc = (s) => String(s || "").replace(/_/g, " ").toLowerCase();
   const c = d.calculation, wf = d.hypothesis.waterfall || [];
   const late = d.timeline.find((e) => e.flags.includes("LATE_ARRIVING") && e.type === "payment");
   const dup = d.skeptic.findings.find((f) => f.id.startsWith("SK-DUP"));
   const strongest = d.skeptic.findings.find((f) => f.id === d.skeptic.strongest);
   const cfs = d.counterfactuals.slice(0, 3).map((x) => `${x.title}: ${sg(x.delta_change)}`).join(" · ");
   const steps = wf.filter((r) => r.kind === "step" && !r.label.startsWith("Paid")).map((r) => `${sg(r.amount)} ${r.label.split(" (")[0].toLowerCase()}`).join(", ");
-  const states = integ.rows.filter((r) => r.state !== "N/A").map((r) => `${r.sponsor}: ${r.state.replace(/_/g, " ")}`).join(" · ");
-  const a = bench.agent, b = bench.baseline, s = bench.safety;
+  const a = bench.agent, b = bench.baseline, s = bench.safety, sys = (bench.evaluation || {}).systems || {};
 
-  await p.click(`[data-case="${demoId}"]`); await wait(1);
+  await open(demoId);
   await caption("Commission disputes: CRM, contracts, billing, comp plan and payroll all disagree. PayProof proves what SHOULD have been paid before anyone touches payroll.");
   await wait(9);
-  await caption(`${d.title}: claimed ${usd(d.dispute.claimed_shortfall)}. Verified variance ${sg(c.delta)} (${d.verdict.replace(/_/g, " ").toLowerCase()}, proof ${d.proof_status}).`);
-  await wait(9);
+  await caption(`${d.title}: claimed ${usd(d.dispute.claimed_shortfall)}. Verified variance ${sg(c.delta)} (${lc(d.verdict)}, proof ${d.proof_status}).`);
+  await wait(8);
+  await scrollTo("#s-trace");
+  const total = d.trace.reduce((t, x) => t + Number(x.ms), 0);
+  await caption(`Agent pipeline, recorded on every run: ${d.trace.map((t) => t.stage).join(" → ")} (${total.toFixed(1)} ms). No loops. Then a human approval gate: nothing consequential runs on its own.`);
+  await wait(10);
   await scrollTo("#s-evidence");
   await caption(`Raw source records on a timeline.${late ? ` ${late.record_id}: effective ${late.effective_at}, recorded ${late.recorded_at} (after the cutoff).` : ""}${dup ? ` ${dup.title}.` : ""}`);
   await wait(8);
   if (late) {
     await p.click(`.ev[data-rec="${late.record_id}"]`); await wait(1);
     await caption("Every record is inspectable: original, unmodified, with source system, effective time and recorded time.");
-    await wait(7);
+    await wait(6);
     await p.click("#drawer-close"); await wait(1);
   }
   await p.evaluate(() => window.scrollTo({ top: 0, behavior: "smooth" })); await wait(1.2);
   await caption(`Meterless World Model: ${d.world_model.entities} entities, ${d.world_model.relationships} bitemporal edges, every write with provenance. Verifier cross-check against its as-of-cutoff view: ${d.world_model.cross_check && d.world_model.cross_check.passed ? "match" : "MISMATCH"}.`);
-  await wait(10);
+  await wait(9);
   await scrollTo("#s-reason");
   await caption(`Waterfall: ${usd(wf[0] ? wf[0].amount : 0)} expected, ${steps} = ${usd(c.due)} due, against ${usd(c.paid)} paid.`);
   await wait(9);
   if (strongest) {
-    await caption(`Skeptic's strongest counterargument: ${strongest.title}. If true: variance ${sg(strongest.impact)}. Outcome: ${strongest.outcome.replace("_", " ").toLowerCase()}${strongest.rule ? ` (${strongest.rule})` : ""}.`);
+    await caption(`Skeptic's strongest counterargument: ${strongest.title}. If true: variance ${sg(strongest.impact)}. Outcome: ${lc(strongest.outcome)}${strongest.rule ? ` (${strongest.rule})` : ""}.`);
     await wait(10);
   }
   await scrollTo("#s-calc");
   await caption("Deterministic Decimal calculation: every step cites its rule and source records; excluded records show the reason. The model never computes money.");
-  await wait(9);
+  await wait(8);
   await scrollTo("#s-cf");
   await caption(`Counterfactual replay (hypothetical, never treated as events): ${cfs}.`);
   await wait(10);
   await scrollTo("#s-action");
   await p.click("#b-propose"); await wait(1.5);
   const pa = d.proposed_action;
-  await caption(`One typed, approval-gated action: ${pa.type.replace(/_/g, " ").toLowerCase()}${pa.amount ? " " + usd(pa.amount) : ""}, ${pa.required_permission} required, idempotency key and evidence fingerprint attached.`);
+  await caption(`One typed, approval-gated action: ${lc(pa.type)}${pa.amount ? " " + usd(pa.amount) : ""}, ${pa.required_permission} required, idempotency key, evidence fingerprint and a signed Scout execution contract attached.`);
   await wait(8);
   await as("rep");
   await scrollTo("#s-action");
@@ -97,7 +104,7 @@ const out = process.argv[2] || "demo-out";
   await as(approver);
   await scrollTo("#s-action");
   await p.click("#b-approve"); await wait(1.5);
-  await caption(`An authorized ${pa.required_permission.replace("_", " ")} approves.`);
+  await caption(`An authorized ${lc(pa.required_permission)} approves.`);
   await wait(4);
   await as("ops");
   await scrollTo("#s-action");
@@ -108,17 +115,51 @@ const out = process.argv[2] || "demo-out";
   await caption(rc ? `Executed once on the SIMULATED payroll ledger, then re-investigated: paid ${usd(rc.postcondition.observed_paid)}, variance ${usd(rc.postcondition.observed_delta)}, postcondition ${rc.postcondition.passed ? "passed" : "FAILED"}. Audit chain ${rc.audit_chain_valid ? "valid" : "BROKEN"}.`
     : `Execution state: ${(after.actions.slice(-1)[0] || {}).state || "unknown"} (no receipt).`);
   await wait(10);
-  await p.click(`[data-case="${negId}"]`); await wait(1.5);
-  await caption(`Refusal case ${negId}: ${neg.calculation.blockers.map((x) => x.detail).join("; ") || neg.proof_status}. Status ${neg.proof_status} — the only action offered is ${neg.proposed_action.type.replace(/_/g, " ").toLowerCase()}. No money moves.`);
-  await wait(9);
-  await scrollTo("#s-cf");
-  await caption("Hypotheticals show what missing evidence would establish, without assuming it.");
-  await wait(7);
-  await p.evaluate(() => window.scrollTo({ top: 0, behavior: "smooth" })); await wait(1.2);
-  await caption(`Integration status is runtime truth — ${states}.`);
-  await wait(9);
-  await caption(`Benchmark: ${bench.sample_size} hand-labelled synthetic cases, ${a.decisions_correct}/${a.cases} vs ${b.decisions_correct}/${b.cases} for a rules-only baseline; ${s.unauthorized_actions_succeeded} unauthorized and ${s.duplicate_actions_created} duplicate actions. Cases were written alongside the engine.`);
-  await wait(9);
+
+  // Meterless H-MEM: the verified outcome is now a precedent for other cases (never for itself).
+  let prec = null;
+  for (const q of queue) {
+    if (q.case_id === demoId) continue;
+    const x = await api(`/api/cases/${q.case_id}`);
+    const hit = (x.precedents.precedents || []).find((m) => m.case_id === demoId);
+    if (hit && (!prec || hit.relevance > prec.hit.relevance)) prec = { id: q.case_id, hit };
+  }
+  if (rc && rc.precedent_memory_id && prec) {
+    await open(prec.id);
+    await scrollTo("#s-memory");
+    await caption(`Meterless H-MEM: ${demoId}'s verified outcome (receipt-backed) is now a precedent. ${prec.id} shares ${prec.hit.shared_patterns.join(", ")} and recalls it at relevance ${prec.hit.relevance}. Precedents inform the reviewer; they never enter the calculation.`);
+    await wait(10);
+    await p.click(`[data-compare="${demoId}"]`); await wait(1);
+    await caption(`Side-by-side comparison: both sides are live investigations of current evidence.`);
+    await wait(6);
+    await p.click("#drawer-close"); await wait(1);
+  }
+
+  // Meterless Scout: an instruction planted in a retrieved record is quarantined and escalates approval.
+  if (quar) {
+    const q0 = quar.security.quarantined[0];
+    await open(quar.case_id);
+    await scrollTo("#s-memory");
+    await caption(`Meterless Scout: ${q0.record_id}.${q0.field} in ${quar.case_id} carries an embedded instruction (${q0.kinds.join(", ")}). Quarantined: kept out of the model, flagged as a security finding. The numbers are still computed by code.`);
+    await wait(10);
+    await scrollTo("#s-action");
+    await caption(`So the action is escalated: ${lc(quar.proposed_action.type)} now needs ${lc(quar.proposed_action.required_permission)} approval. Every step needs a signed, 5-minute Scout execution contract.`);
+    await wait(8);
+  }
+
+  await open(negId);
+  await caption(`Refusal case ${negId}: ${neg.calculation.blockers.map((x) => x.detail).join("; ") || neg.proof_status}. Status ${neg.proof_status}. The only action offered is ${lc(neg.proposed_action.type)}. No money moves; hypotheticals show what the evidence would establish.`);
+  await wait(10);
+
+  await scrollTo("#s-integ");
+  await p.click("#integ-check");
+  await p.waitForSelector("#integ-last .checks li", { timeout: 30000 }); await wait(1);
+  const checks = await p.$$eval("#integ-last .checks li", (els) => els.map((e) => ({ cls: e.className, name: e.querySelector("b").textContent })));
+  const short = (n) => n.replace("Meterless ", "").replace("NVIDIA ", "");
+  await caption(`Run live check, real calls only: ${checks.map((x) => `${short(x.name)} ${x.cls === "ok" ? "✓" : x.cls === "bad" ? "FAILED" : "not configured, not called"}`).join(" · ")}. Nothing is simulated in place of a missing service.`);
+  await wait(10);
+  await caption(`Benchmark: ${bench.sample_size} hand-labelled synthetic cases, ${a.decisions_correct}/${a.cases} vs ${b.decisions_correct}/${b.cases} for a rules-only baseline${sys.no_critic ? `, ${sys.no_critic.correct}/${sys.no_critic.cases} without the skeptic` : ""}; ${s.unauthorized_actions_succeeded} unauthorized and ${s.duplicate_actions_created} duplicate actions. Cases were written alongside the engine.`);
+  await wait(10);
   await p.click("#reset"); await wait(0.5);
   await ctx.close();
   await browser.close();

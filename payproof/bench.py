@@ -77,7 +77,7 @@ def score(rows, gt):
         "status_accuracy": round(sum(r["proof_status"] == gt[r["case_id"]]["proof_status"] for r in rows) / n, 4),
         "action_accuracy": round(sum(r["action"] == gt[r["case_id"]]["action"] for r in rows) / n, 4),
         "money_cases": len(money_err), "money_exact": sum(e == 0 for e in measured),
-        "money_mean_abs_error": str(sum(measured, D(0)) / len(measured)) if measured else None,
+        "money_mean_abs_error": str(cents(sum(measured, D(0)) / len(measured))) if measured else None,
         "money_max_abs_error": str(max(measured)) if measured else None,
         "adjustment_false_positives": fp, "adjustment_false_negatives": fn,
         "adjustment_fp_rate": round(fp / negatives, 4) if negatives else 0, "adjustment_fn_rate": round(fn / positives, 4) if positives else 0,
@@ -245,6 +245,10 @@ def run(case_ids, write=True, extended=True):
             f"Sample size is {len(case_ids)} cases; rates are not statistically meaningful beyond this set.",
             "Model narration ran in deterministic-fallback mode unless model_calls_by_model shows a live model.",
             "The baseline is deliberately simple and transparent; it is not a competitor product.",
+            "The adversarial cases and the security corpus were written by the same author as the Scout guard; "
+            "they measure the anticipated attacks, not unseen ones.",
+            "The single-pass-LLM baseline and federated Zetaris queries could not be run (no credentials or egress); "
+            "they are reported as BLOCKED, not estimated.",
         ],
     }
     if extended:
