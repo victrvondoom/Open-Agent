@@ -18,6 +18,7 @@ from .money import D
 from .sources import sha
 from . import world_model as wm
 from .hmem import PrecedentMemory
+from .scout import Scout, ScoutError
 from .llm import ModelClient
 from .workflow import investigate, source_fingerprint
 
@@ -125,6 +126,7 @@ class ActionService:
         self.proposal_investigations: dict[str, dict] = {}  # action id -> investigation that justified it
         self.memory_dir = memory_dir
         self.memory = PrecedentMemory(persist_dir=memory_dir)  # Meterless H-MEM: verified precedents only
+        self.scout = Scout()  # Meterless Scout Intent: every operation needs a signed execution contract
         self.lock = threading.RLock()
         self.clock = clock or (lambda: datetime.now(timezone.utc))
 
@@ -166,6 +168,17 @@ class ActionService:
                     f"({report['processed']} new/changed source records); fingerprint changed={fp_changed}")
         return None
 
+    def _contract(self, intent, user, capability, params=None, escalate=False):
+        """Ask Scout for a decision and verify the contract before acting (fail closed)."""
+        try:
+            c = self.scout.decide(intent, user, params=params, escalate=escalate)
+            self.scout.verify(c, capability, intent=intent, user_id=user["id"])
+        except ScoutError as e:
+            self.audit.append("DENIED", user["id"], op=intent, reason=e.code)
+            raise ActionError("FORBIDDEN" if e.code == "POLICY_BLOCK" else e.code, e.message, e.status)
+        return {k: c[k] for k in ("contractId", "issuedAt", "expiresAt", "signature")} | {"risk": c["risk"]["level"],
+                                                                                          "capabilities": c["scope"]["capabilities"]}
+
     def get(self, action_id):
         a = self.actions.get(action_id)
         if not a:
@@ -175,9 +188,7 @@ class ActionService:
     # ------------------------------------------------------------------ operations
     def propose(self, case_id, token):
         u = self.user(token)
-        if "action.propose" not in u["perms"]:
-            self.audit.append("DENIED", u["id"], op="propose", case_id=case_id)
-            raise ActionError("FORBIDDEN", f"role {u['role']} cannot propose actions", 403)
+        contract = self._contract("action.propose", u, "action.create", {"case_id": case_id})
         with self.lock:
             inv = self.investigate(case_id, use_model=False)
             inv.pop("_world", None)
@@ -187,7 +198,7 @@ class ActionService:
                     return a  # idempotent proposal
             aid = "ACT-" + sha([pa["idempotency_key"], len(self.actions)])[:10]
             a = {**pa, "id": aid, "state": "PROPOSED", "proposed_by": u["id"], "history": [], "audit_seqs": [],
-                 "proof_hash": inv["proof_hash"], "staleness_checks": [], "approved_by": None, "approved_at": None, "receipt": None,
+                 "proof_hash": inv["proof_hash"], "staleness_checks": [], "contracts": [contract], "approved_by": None, "approved_at": None, "receipt": None,
                  "created_at": self.clock().isoformat(timespec="seconds")}
             self.actions[aid] = a
             self.proposal_investigations[aid] = inv
@@ -229,11 +240,30 @@ class ActionService:
             if stale := self._stale(a):
                 self._move(a, "EXPIRED", "SYSTEM", reason=f"STALE_EVIDENCE before approval: {stale}")
                 raise ActionError("STALE_EVIDENCE", "source records changed since the proposal; action expired", 409)
+            a["contracts"].append(self._contract("action.approve", u, "action.decide", {"action_id": action_id, "approve": approve},
+                                                 escalate=bool(a.get("escalated"))))
             if approve:
                 a["approved_by"], a["approved_at"] = u["id"], self.clock().isoformat(timespec="seconds")
                 self._move(a, "APPROVED", u["id"], note=note[:200])
             else:
                 self._move(a, "REJECTED", u["id"], note=note[:200])
+            return a
+
+    def escalate(self, action_id, token, note: str = ""):
+        """Escalate an awaiting action to controller approval (human control; never lowers a requirement)."""
+        u = self.user(token)
+        with self.lock:
+            a = self.get(action_id)
+            if not ({"action.approve", "action.propose"} & u["perms"]):
+                raise ActionError("FORBIDDEN", f"role {u['role']} cannot escalate actions", 403)
+            if a["state"] != "AWAITING_APPROVAL":
+                raise ActionError("INVALID_STATE", f"only actions awaiting approval can be escalated (is {a['state']})", 409)
+            if a["required_permission"] == "controller":
+                return a
+            a["required_permission"], a["escalated"] = "controller", True
+            a["history"].append({"from": a["state"], "to": a["state"], "actor": u["id"], "at": self.clock().isoformat(timespec="seconds"),
+                                 "reason": f"escalated to controller: {note[:200]}"})
+            a["audit_seqs"].append(self.audit.append("ACTION_ESCALATED", u["id"], action_id=action_id, case_id=a["case_id"])["seq"])
             return a
 
     def execute(self, action_id, token, idempotency_key):
@@ -266,6 +296,8 @@ class ActionService:
                 if a["state"] != "FAILED":
                     self._move(a, "FAILED", "SYSTEM", reason="precondition: paid total changed")
                 raise ActionError("PRECONDITION_FAILED", "paid total changed since approval", 409)
+            cap = "payroll.sim.write" if a["type"] == "PREPARE_PAYROLL_ADJUSTMENT" else "ticket.sim.write"
+            a["contracts"].append(self._contract("action.execute", u, cap, {"action_id": action_id}))
             try:
                 row, created = self.adapter.apply(a)
             except RuntimeError as exc:

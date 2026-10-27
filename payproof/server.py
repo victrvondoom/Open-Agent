@@ -16,6 +16,7 @@ from urllib.parse import parse_qs, urlparse
 from .actions import USERS, ActionError, ActionService, late_credit_note
 from .integrations import integration_status
 from .intake import IntakeError, create_case, template_from_case
+from .scout import ScoutError
 from .sources import make_source, load_plans
 
 ROOT = Path(__file__).resolve().parent.parent
@@ -180,6 +181,9 @@ def make_handler(app: App):
                 if b.get("decision") not in ("approve", "reject"):
                     raise ActionError("BAD_REQUEST", "decision must be approve|reject", 400)
                 return 200, app.svc.decide(g[1], self._token(), b["decision"] == "approve", str(b.get("note", "")))
+            if (g := m(r"/api/actions/(ACT-[0-9a-f]{10})/escalate")) and method == "POST":
+                b = self._body()
+                return 200, app.svc.escalate(g[1], self._token(), str(b.get("note", "")))
             if (g := m(r"/api/actions/(ACT-[0-9a-f]{10})/execute")) and method == "POST":
                 return 200, app.svc.execute(g[1], self._token(), self.headers.get("Idempotency-Key", ""))
             if (g := m(r"/api/cases/(CASE-\d{4})/simulate/late-event")) and method == "POST":
@@ -232,8 +236,16 @@ def make_handler(app: App):
                 u = self._viewer()
                 if "case.file" not in u["perms"]:
                     raise ActionError("FORBIDDEN", f"role {u['role']} cannot file disputes", 403)
+                body = self._body()
+                try:  # Meterless Scout guard on user-supplied free text: embedded instructions are refused
+                    app.svc.scout.decide("dispute.file", u, texts={k: v for k, v in body.items()
+                                                                   if k in ("title", "narrative", "account", "rep_name", "crm_name", "co_seller_name")
+                                                                   and isinstance(v, str)})
+                except ScoutError as e:
+                    app.svc.audit.append("DENIED", u["id"], op="dispute.file", reason=e.code)
+                    raise ActionError(e.code, e.message, e.status)
                 try:
-                    case = create_case(self._body(), set(app.source.list_case_ids()), directory=app.source.user_dir)
+                    case = create_case(body, set(app.source.list_case_ids()), directory=app.source.user_dir)
                 except IntakeError as e:
                     raise ActionError("INVALID_INPUT", str(e), 422)
                 app.svc.audit.append("CASE_FILED", u["id"], case_id=case["case_id"],

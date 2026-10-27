@@ -14,6 +14,7 @@ from .counterfactual import replay
 from .evidence import EvidenceIndex, build_graph, resolve_identity
 from .llm import ModelClient
 from . import world_model as wm
+from .scout import scan_records
 from .money import D, cents, fmt
 from .policy import Scenario, compute
 from .sources import sha
@@ -374,9 +375,41 @@ def final_validator(index, plans, status, calc, bundle_claims, narrative_claims,
 
 # --------------------------------------------------------------------------- orchestration
 
-def investigate(case: dict, plans: dict, ledger: list | None = None, model: ModelClient | None = None) -> dict:
+MONEY_FIELDS = ("amount", "tcv", "new_tcv", "pct", "rate", "rate_override")
+
+
+def malformed_records(case: dict) -> list[dict]:
+    """Records whose monetary fields are not exact decimals. They are excluded (fail closed)."""
+    from decimal import Decimal, InvalidOperation
+    bad = []
+    for system, blk in case["sources"].items():
+        for rec in blk["records"]:
+            for f in MONEY_FIELDS:
+                v = rec.get(f)
+                if v is None:
+                    continue
+                try:
+                    if isinstance(v, (float, bool)) or not Decimal(str(v)).is_finite():
+                        raise InvalidOperation
+                except (InvalidOperation, ValueError):
+                    bad.append({"system": system, "record_id": rec["id"], "field": f})
+    return bad
+
+
+def investigate(case: dict, plans: dict, ledger: list | None = None, model: ModelClient | None = None,
+                options: dict | None = None) -> dict:
+    """options (ablations for the benchmark; all True in the product):
+         critic       skeptic findings + verifier conflict materiality
+         world_model  Meterless World Model ingest, cross-check and model context
+         scout        Meterless Scout quarantine of embedded instructions in retrieved records"""
+    opt = {"critic": True, "world_model": True, "scout": True, **(options or {})}
     t0 = time.monotonic()
     model = model or ModelClient()
+    malformed = malformed_records(case)
+    if malformed:  # analyse a copy without the corrupted records; never the original
+        bad_ids = {m["record_id"] for m in malformed}
+        case = {**case, "sources": {k: {**v, "records": [r for r in v["records"] if r["id"] not in bad_ids]}
+                                    for k, v in case["sources"].items()}}
     index = EvidenceIndex(case)
     index.add_simulated(ledger or [])
     d = case["dispute"]
@@ -386,20 +419,39 @@ def investigate(case: dict, plans: dict, ledger: list | None = None, model: Mode
     identity = resolve_identity(emp, index.of_type("crm_user"))
 
     calc = compute(index, plans, identity, Scenario())
+    for m in malformed:
+        calc["blockers"].append({"code": "MALFORMED_RECORD", "detail": f"{m['record_id']}.{m['field']} is not an exact decimal; record excluded",
+                                 "cites": []})
     cutoff = _step(calc, "cutoff")["value"]
     tl = timeline(index, cutoff)
     cfs = replay(index, plans, identity, calc)
 
     # Meterless World Model: canonical, provenance-stamped, bitemporal evidence state.
     world = wm.WorldModel(namespace=case["case_id"])
-    wm_ingest = wm.ingest_case(world, case, run_id)
+    wm_ingest = wm.ingest_case(world, case, run_id) if opt["world_model"] else \
+        {"ids": {}, "state_hash": None, "entities": 0, "relationships": 0, "runId": None, "processed": 0,
+         "skippedUnchanged": 0, "eventsAppended": 0, "changed": False}
     from .integrations import record_world_model_ingest
     record_world_model_ingest()
-    wm_check = world_model_cross_check(world, wm_ingest["ids"], index, calc, cutoff)
+    wm_check = world_model_cross_check(world, wm_ingest["ids"], index, calc, cutoff) if opt["world_model"] else None
 
     hypo = investigator(index, calc, identity)
     sk = skeptic(index, calc, identity, cfs, tl)
+    # Meterless Scout guard over retrieved documents: embedded instructions are quarantined.
+    if not opt["critic"]:
+        sk = {"findings": [], "strongest": None}
+    quarantined = scan_records(case) if opt["scout"] else []
+    for q in quarantined:
+        sk["findings"].append({"id": f"SK-INJ-{q['record_id']}", "title": f"Embedded instruction in {q['record_id']}.{q['field']} quarantined",
+                               "detail": f"Scout injection check ({', '.join(q['kinds'])}) flagged source text. It is excluded from model "
+                                         "context and the proposed action is escalated to controller approval.",
+                               "cites": [q["record_id"]], "outcome": "UNRESOLVED", "counterfactual": None, "impact": None,
+                               "severity": "high", "rule": "SCOUT-GUARD"})
     ver = policy_verifier(index, plans, identity, calc, ledger or [])
+    if not opt["critic"]:  # ablation: no materiality test, conflicts are waved through
+        ver["conflicts"] = [{**c, "material": False} for c in ver["conflicts"]]
+        if ver["proof_status"] == "DISPUTED":
+            ver["proof_status"] = "VERIFIED"
     if wm_check:
         ver["invariants"].append(wm_check)
         if not wm_check["passed"]:
@@ -407,12 +459,17 @@ def investigate(case: dict, plans: dict, ledger: list | None = None, model: Mode
     status = ver["proof_status"]
     verdict = verdict_for(status, calc, d["claimed_shortfall"], ledger or [])
     action = resolution_planner(index, plans, status, verdict, calc, fingerprint, run_id, sk["findings"])
+    if quarantined:
+        action["escalated"] = True
+        action["required_permission"] = "controller"
+        action["justification"] += f" Escalated: {len(quarantined)} source record(s) contain embedded instructions."
     bundle = build_bundle(index, plans, calc, identity, ver, verdict, sk, status, d)
 
     # Model narration (bounded, optional, validated)
     facts = {"due": calc["due"], "paid": calc["paid"], "delta": calc["delta"], "status": status, "verdict": verdict,
              "steps": [{k: s[k] for k in ("label", "value", "rule", "cites")} for s in calc["steps"]],
-             "world_model_context": wm.context_for(world, wm_ingest["ids"][d["opportunity_id"]])}
+             "world_model_context": [c for c in wm.context_for(world, wm_ingest["ids"][d["opportunity_id"]])
+                                     if c["id"] not in {q["record_id"] for q in quarantined}] if opt["world_model"] else []}
     narrative, m1 = model.narrate("explain_resolution", facts, hypo["claims"])
     strongest = next((f for f in sk["findings"] if f["id"] == sk["strongest"]), None)
     sk_claims = [{"text": f"{strongest['title']}. {strongest['detail']}", "cites": strongest["cites"]}] if strongest else []
@@ -442,6 +499,8 @@ def investigate(case: dict, plans: dict, ledger: list | None = None, model: Mode
         **core, "proof_hash": proof_hash, "title": case["title"], "tags": case.get("tags", []), "dispute": d,
         "timeline": tl, "graph": graph, "hypothesis": hypo, "skeptic": sk, "verification": ver,
         "narrative": validation["accepted_narrative"], "validation": validation,
+        "security": {"quarantined": quarantined, "escalated": bool(quarantined), "malformed": malformed},
+        "options": opt,
         "sources_meta": {"provenance": case.get("provenance", {k: "local-fixtures" for k in case["sources"]}),
                          "feeds": case["feeds"], "late_events": case.get("late_events", [])},
         "telemetry": {"latency_ms": round((time.monotonic() - t0) * 1000, 2), "model_calls": model.calls,
