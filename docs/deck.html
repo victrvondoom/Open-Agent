@@ -1,0 +1,149 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>PayProof Pitch Deck</title>
+<style>
+  :root { --bg:#0b0f17; --panel:#111827; --line:#1f2a3a; --text:#e5e9f0; --dim:#8a96a8; --accent:#6ee7b7; --blue:#60a5fa; --warn:#fbbf24; --bad:#f87171; }
+  * { box-sizing: border-box; }
+  html, body { margin:0; height:100%; background:var(--bg); color:var(--text); font:18px/1.45 Inter, system-ui, sans-serif; }
+  .slide { display:none; min-height:100vh; padding:6vh 7vw; flex-direction:column; justify-content:center; }
+  .slide.on { display:flex; }
+  h1 { font-size:clamp(34px,5vw,60px); margin:0 0 12px; letter-spacing:-.5px; }
+  h2 { font-size:clamp(26px,3.4vw,40px); margin:0 0 22px; }
+  .k { color:var(--accent); font-weight:700; text-transform:uppercase; letter-spacing:2px; font-size:13px; margin-bottom:10px; }
+  .dim { color:var(--dim); }
+  .grid { display:grid; grid-template-columns:repeat(auto-fit,minmax(240px,1fr)); gap:16px; }
+  .card { background:var(--panel); border:1px solid var(--line); border-radius:14px; padding:18px; }
+  .card b { color:var(--accent); }
+  table { border-collapse:collapse; width:100%; max-width:980px; }
+  td, th { padding:9px 10px; border-bottom:1px solid var(--line); text-align:left; }
+  th { color:var(--dim); font-size:13px; text-transform:uppercase; letter-spacing:1px; }
+  .num { font-family:ui-monospace,Menlo,monospace; text-align:right; }
+  .big { font-size:clamp(40px,6vw,76px); font-weight:800; font-family:ui-monospace,Menlo,monospace; }
+  .flow { display:flex; flex-wrap:wrap; gap:8px; align-items:center; font-weight:600; }
+  .flow span { border:1px solid var(--line); background:var(--panel); padding:8px 12px; border-radius:10px; }
+  .flow i { color:var(--dim); font-style:normal; }
+  .foot { position:fixed; bottom:14px; right:20px; color:var(--dim); font-size:13px; }
+  .warn { color:var(--warn); } .bad { color:var(--bad); } .ok { color:var(--accent); }
+  ul { margin:0; padding-left:22px; } li { margin:6px 0; }
+</style>
+</head>
+<body>
+<section class="slide on">
+  <div class="k">GenAI.Works Open Agent Hackathon 2026</div>
+  <h1>PeoplePay-360 · PayProof</h1>
+  <p style="font-size:24px;max-width:900px">Proof-carrying commission dispute resolution. It works out what should have been paid, shows the evidence, tests the alternatives, and only then acts, with approval.</p>
+  <p class="dim">Synthetic data · simulated payroll adapter · Python stdlib + vanilla JS</p>
+</section>
+
+<section class="slide">
+  <div class="k">Problem</div>
+  <h2>“Why is my commission wrong?” has five different answers</h2>
+  <div class="grid">
+    <div class="card"><b>CRM</b><br>$60,000 opportunity</div>
+    <div class="card"><b>Contract</b><br>amended to $50,000</div>
+    <div class="card"><b>Billing</b><br>partly paid, credit note, payment recorded late</div>
+    <div class="card"><b>Comp plan</b><br>collection basis, versioned rates, exceptions</div>
+    <div class="card"><b>Payroll</b><br>$3,600 paid, then the same clawback twice</div>
+  </div>
+  <p class="dim" style="margin-top:20px">Analysts reconcile this by hand. Chatbots guess. Neither leaves a proof, and neither is safe to let near payroll.</p>
+</section>
+
+<section class="slide">
+  <div class="k">Demo case · CASE-1001</div>
+  <h2>Claimed $3,000. Verified $1,100.</h2>
+  <table>
+    <tr><td>Rep expectation: CRM $60,000 × 100% × 10%</td><td class="num">$6,000.00</td></tr>
+    <tr><td>Amendment AMD-3301-1 → eligible $50,000 (P-3.1)</td><td class="num bad">−$1,000.00</td></tr>
+    <tr><td>Only $43,000 net collected by cutoff (P-3.2)</td><td class="num bad">−$700.00</td></tr>
+    <tr><th>Verified due</th><th class="num">$4,300.00</th></tr>
+    <tr><td>Paid: $3,600 − $200 − $200 (duplicate clawback)</td><td class="num">$3,200.00</td></tr>
+    <tr><th>Verified underpayment</th><th class="num ok">$1,100.00</th></tr>
+  </table>
+  <p class="dim">Every line cites source records and a policy clause. All of it is computed by deterministic Decimal code.</p>
+</section>
+
+<section class="slide">
+  <div class="k">How it reasons</div>
+  <h2>An adversarial workflow with a deterministic verifier</h2>
+  <div class="flow"><span>Investigator</span><i>→</i><span>Skeptic</span><i>→</i><span>Policy verifier</span><i>→</i><span>Resolution planner</span><i>→</i><span>Final validator</span></div>
+  <div class="grid" style="margin-top:22px">
+    <div class="card"><b>Skeptic's strongest counterargument</b><br>“PAY-44987 was recorded after cutoff. Exclude it and she's owed $200.” Tested with replay, then ruled out under P-4.2 (value date governs).</div>
+    <div class="card"><b>Materiality, not vibes</b><br>Conflicting amendments are recomputed under each alternative. If the outcome changes the case is DISPUTED; if not, it is VERIFIED.</div>
+    <div class="card"><b>Model at the edge</b><br>Nemotron only phrases explanations. Any sentence with an unknown record id or an invented amount is dropped and counted.</div>
+  </div>
+</section>
+
+<section class="slide">
+  <div class="k">Signature feature</div>
+  <h2>Counterfactual payout replay</h2>
+  <table>
+    <tr><th>Hypothetical scenario</th><th class="num">Due</th><th class="num">Δ variance</th></tr>
+    <tr><td>Timing by recorded date instead of value date</td><td class="num">$3,400.00</td><td class="num bad">−$900.00</td></tr>
+    <tr><td>Invoice paid in full before cutoff</td><td class="num">$4,800.00</td><td class="num ok">+$500.00</td></tr>
+    <tr><td>Credit note issued after cutoff</td><td class="num">$4,500.00</td><td class="num ok">+$200.00</td></tr>
+    <tr><td>Duplicate clawback never posted</td><td class="num">$4,300.00</td><td class="num bad">−$200.00</td></tr>
+    <tr><td>Amendment void (CRM value governs)</td><td class="num">$4,300.00</td><td class="num">$0.00</td></tr>
+  </table>
+  <p class="dim">Same engine, hypothetical overlays, always labelled. The rep's $60k premise turns out not to matter, because collections cap the base.</p>
+</section>
+
+<section class="slide">
+  <div class="k">Safe action</div>
+  <h2>Approval gated, executed at most once, verified afterwards</h2>
+  <div class="flow"><span>PROPOSED</span><i>→</i><span>VALIDATED</span><i>→</i><span>AWAITING_APPROVAL</span><i>→</i><span>APPROVED</span><i>→</i><span>EXECUTED</span><i>→</i><span class="ok">VERIFIED</span></div>
+  <ul style="margin-top:22px">
+    <li>Backend authorization, approval limits ($5k approver / controller above), segregation of duties. The rep's approval gets a 403.</li>
+    <li>Idempotency key and source fingerprint are re-checked at approval and at execution. Stale evidence moves the action to EXPIRED.</li>
+    <li>Postcondition: the case is re-investigated with the simulated ledger, so paid = $4,300 and variance = $0. A hash-chained receipt is issued.</li>
+    <li>Negative case: no contract means NEEDS_EVIDENCE, and the only action allowed is to request evidence.</li>
+  </ul>
+</section>
+
+<section class="slide">
+  <div class="k">Evaluation · actual results</div>
+  <h2>25 hand-labelled synthetic cases</h2>
+  <table>
+    <tr><th>Metric</th><th class="num">PayProof</th><th class="num">Rules-only baseline</th></tr>
+    <tr><td>Decision accuracy (incl. amount when money moves)</td><td class="num">25/25</td><td class="num">11/25</td></tr>
+    <tr><td>Wrong payroll adjustments recommended</td><td class="num">0</td><td class="num">10</td></tr>
+    <tr><td>Correct abstention when evidence is missing or contradictory</td><td class="num">5/5</td><td class="num">0/5</td></tr>
+    <tr><td>Citation coverage of material claims</td><td class="num">100%</td><td class="num">0%</td></tr>
+    <tr><td>Unauthorized actions succeeded / attempts</td><td class="num">0 / 151</td><td class="num">n/a</td></tr>
+    <tr><td>Duplicate actions from 125 concurrent re-executions</td><td class="num">0</td><td class="num">n/a</td></tr>
+    <tr><td>Stale-evidence executions blocked</td><td class="num">8 / 8</td><td class="num">n/a</td></tr>
+  </table>
+  <p class="dim">Limitations: the cases and the engine were written by the same team, so these results show policy fidelity, not generalisation. The baseline is a transparent strawman. The model ran in fallback mode for this benchmark.</p>
+</section>
+
+<section class="slide">
+  <div class="k">Sponsor technology — truthful status</div>
+  <h2>What is live, what is an adapter</h2>
+  <table>
+    <tr><td><b>NVIDIA Nemotron</b></td><td>Explanation and counterargument phrasing, cite-checked. Client implemented; tested against a local stub only.</td></tr>
+    <tr><td><b>Meterless Nightshift</b></td><td>Intended AI provider (OpenAI-compatible endpoint). <span class="warn">Not yet verified.</span></td></tr>
+    <tr><td><b>Meterless Engine</b></td><td>World Model ranking of counterfactual scenarios, advisory only. <span class="warn">Adapter only; API contract unverified.</span></td></tr>
+    <tr><td><b>Zetaris</b></td><td>Federated query over 6 systems with allowlisted SQL templates. <span class="warn">Adapter only; untested.</span></td></tr>
+    <tr><td><b>Cursor</b></td><td>Development environment; project rules in <code>.cursor/rules</code>.</td></tr>
+  </table>
+  <p class="dim">The UI header shows each integration's real runtime mode. Nothing is labelled live unless it actually answered.</p>
+</section>
+
+<section class="slide">
+  <div class="k">Try it</div>
+  <h1 style="font-family:ui-monospace,Menlo,monospace;font-size:clamp(22px,3vw,34px)">python3 -m payproof.server</h1>
+  <p>No dependencies and no credentials. It opens on CASE-1001 at http://127.0.0.1:8360.</p>
+  <p class="dim">python3 -m unittest discover -s tests · python3 -m payproof.bench</p>
+</section>
+<div class="foot"><span id="n"></span> · ← → to navigate</div>
+<script>
+  const s = [...document.querySelectorAll(".slide")]; let i = 0;
+  const show = (k) => { i = Math.max(0, Math.min(s.length - 1, k)); s.forEach((x, j) => x.classList.toggle("on", j === i)); document.getElementById("n").textContent = `${i + 1} / ${s.length}`; };
+  document.addEventListener("keydown", (e) => { if (["ArrowRight", "PageDown", " "].includes(e.key)) show(i + 1); if (["ArrowLeft", "PageUp"].includes(e.key)) show(i - 1); });
+  document.addEventListener("click", (e) => show(e.clientX > innerWidth / 3 ? i + 1 : i - 1));
+  show(0);
+</script>
+</body>
+</html>

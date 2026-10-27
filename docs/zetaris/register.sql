@@ -1,0 +1,15 @@
+-- ILLUSTRATIVE, NOT VERIFIED AGAINST ZETARIS. Adapt the syntax to your Zetaris version.
+-- Goal: expose the six synthetic source systems as federated tables keyed by case_key,
+-- matching the allowlisted templates in payproof/sources.py (ZETARIS_QUERIES).
+-- Each table holds one row per source record. Columns are the record fields from
+-- data/cases/<CASE-ID>.json plus case_key.
+--
+--   hris_sim.employees   <- sources.hris.records
+--   crm_sim.records      <- sources.crm.records
+--   clm_sim.records      <- sources.clm.records
+--   billing_sim.records  <- sources.billing.records
+--   comp_sim.records     <- sources.comp.records
+--   payroll_sim.records  <- sources.payroll.records
+--
+-- PayProof only ever issues:  SELECT * FROM <schema>.<table> WHERE case_key = :case_key
+-- It never sends model-generated SQL.
