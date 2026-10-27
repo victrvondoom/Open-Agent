@@ -1,39 +1,56 @@
-# Architecture
+# Architecture: RECLAIM × Open-Agent Unified OS
 
 ```
-            ┌───────────── source adapters (sources.py) ─────────────┐
- HRIS  CRM  CLM  Billing  Comp  Payroll    LocalFixtureSource | ZetarisSource (documented REST SQL route)
-            └──────────────┬──────────────────────────────────────────┘
-                           │ original records (never mutated) + late-event overlay
-                           ▼
- 1 intake          EvidenceIndex (evidence.py): provenance, normalized facts, identity resolution;
-                   malformed money fields → record excluded from a copy + MALFORMED_RECORD blocker
- 2 policy          Policy engine (policy.py): pure, Decimal, cited steps, blockers, conflicts
- 3 counterfactual  counterfactual.py: hypothetical Scenario overlays replayed through the same engine
- 4 federation      Meterless World Model (world_model.py): provenance-stamped entities, bitemporal edges,
-                   idempotent ingest, as-of-cutoff cross-check, ordered audit → logs/*.jsonl
- 5 hypothesis      Investigator
- 6 guard           Meterless Scout (scout.py): injection scan of every retrieved record → quarantine
- 7 adversarial     Skeptic (falsification tests ↔ counterfactuals) → Policy verifier (recompute,
-                   invariants, conflict materiality)
- 8 decision        Resolution planner (typed action, idempotency key, escalation) → Final validator
-                   (cites + amounts checked, allowlist, proof consistency)
-                           │
-                           ▼
-  Proof bundle + trace + run_id + proof_hash + source_fingerprint
-        │                                     └── H-MEM recall (hmem.py): precedents from *other* verified
-        ▼                                         cases, shown to the reviewer; never an input
-  ActionService (actions.py): Scout contract per step · state machine · authz · limits · SoD · TTL ·
-                              stale check (fingerprint + World Model re-ingest) · human escalation
-        │                                   │
-        ▼                                   ▼
-  SimulatedAdapter (idempotent)       AuditLog (hash chain) → receipt
-        │
-        └── postcondition: re-investigate with the simulated ledger → paid == due, variance 0
-                 │
-                 ▼
-          H-MEM write: verified outcome → precedent (refs: case, action, receipt, proof hash)
+  ┌────────────────────────────────────────────────────────────────────────────────────────┐
+  │                           CONSUMER / ENTERPRISE DISPUTE INTAKE                         │
+  │      Voice Transcripts (Wispr)  ·  PDF / Claim Documents  ·  Citizen & Rep Narrative  │
+  └──────────────────────────────┬─────────────────────────────────────────────────────────┘
+                                 │
+                                 ▼
+  ┌────────────────────────────────────────────────────────────────────────────────────────┐
+  │                        RECLAIM MULTI-AGENT PLATFORM (FastAPI @ :8001)                  │
+  │  - 8 Statutory Legal Domains (Health Insurance, Banking, Aviation, Telecom, Housing)   │
+  │  - LangGraph Multi-Agent Orchestration (Evidence, Research, Strategy, Review Agents)   │
+  │  - Bitemporal Document Vault & Regulatory Corpus Retrieval                             │
+  └──────────────────────────────┬─────────────────────────────────────────────────────────┘
+                                 │ HTTP REST (Bearer Token 'dev-user' / timeouts / retries)
+                                 │ Request: POST /api/v1/agents/run-case
+                                 │ Response: AgentRunResponse (summaries, draft, citations)
+                                 ▼
+  ┌────────────────────────────────────────────────────────────────────────────────────────┐
+  │                         OPEN-AGENT INTEGRATION HUB (@ :8360)                           │
+  │                                                                                        │
+  │  1. Bridge & Evidence Normalizer (payproof/reclaim_bridge.py, reclaim_evidence.py)     │
+  │     - Validates statutory citations (IRDAI, DGCA, RBI, TRAI, RERA)                     │
+  │     - Rejects unverified / fabricated legal citations                                  │
+  │     - Detects material contradictions against transaction ledger                       │
+  │                                                                                        │
+  │  2. Zetaris Federated SQL Adapter (payproof/sources.py)                                │
+  │     - Parameterized allowlisted queries on consumer transactions, refunds, policies    │
+  │                                                                                        │
+  │  3. Meterless World Model (payproof/world_model.py)                                    │
+  │     - Ingests entities, relationships, bitemporal facts with provenance {kind, at}     │
+  │     - Computes deterministic 16-hex canonical state hash                               │
+  │                                                                                        │
+  │  4. Meterless Scout Security Guard (payproof/scout.py)                                 │
+  │     - Scans intake narrative & evidence text for prompt injection / system overrides   │
+  │     - Quarantines malicious records; enforces HMAC-signed execution contracts          │
+  │                                                                                        │
+  │  5. Meterless H-MEM Precedent Recall (payproof/hmem.py)                                │
+  │     - Retrieves domain-specific verified dispute resolutions without cross-leakage     │
+  │                                                                                        │
+  │  6. NVIDIA Nemotron Verified Reasoner (payproof/llm.py, reclaim_verifier.py)          │
+  │     - Produces grounded "Why" explanation strictly citing allowlisted record IDs       │
+  │     - Synthesizes strongest counterargument and residual uncertainty                   │
+  │                                                                                        │
+  │  7. Decision Room & Approval Gate (payproof/actions.py, web/)                          │
+  │     - 3-Column Enterprise Decision Room (Evidence | Multi-Agent | Action Gate)         │
+  │     - Dark Charcoal (#151816) x Warm Cream (#FAF7F0) x Soft Gold (#C9A66B) Theme       │
+  │     - Mandatory human sign-off; default idempotent sandbox execution                   │
+  │     - Append-only cryptographic audit trail and verifiable receipt issuance            │
+  └────────────────────────────────────────────────────────────────────────────────────────┘
 ```
+
 
 ## Pipeline trace
 

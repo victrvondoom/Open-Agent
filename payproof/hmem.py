@@ -591,6 +591,16 @@ PATTERN_LABELS = {
     "SK-SPLIT_TOTAL_INVALID": "split assignments do not total 100%",
     "SK-AMENDMENT_CONFLICT": "conflicting amendments on the same effective date",
     "SK-INJ": "embedded instruction in source text was quarantined",
+    # consumer disputes (RECLAIM x PayProof)
+    "SK-CX-SHELL": "credit shell issued without passenger consent is not a refund",
+    "SK-CX-EXTRA": "extraordinary circumstances corroborated by an airport notice",
+    "SK-CX-CONTRA": "contradictory carrier, card-network or claimant records",
+    "SK-CX-INJ": "embedded instruction in a claimant document or carrier record was quarantined",
+    "SK-CX-CITE": "agent citation unverified or misquoted against the rulebook",
+    "SK-CX-AMOUNT": "agent stated an amount no record supports",
+    "SK-CX-DEMAND": "agent draft demanded a different amount than verified",
+    "SK-CX-MISSING": "required carrier or card-network evidence missing or stale",
+    "SK-CX-DRIFT": "a cited source record changed after it was read",
 }
 
 
@@ -617,32 +627,36 @@ class PrecedentMemory:
     Read rule: a case never retrieves its own precedents; retrieval only informs the reviewer."""
 
     SOURCE_PREFIX = "payproof:verified-action:"
+    CONSUMER_PREFIX = "payproof:verified-consumer-action:"  # consumer precedents never surface in payroll recall
 
     def __init__(self, persist_dir=None, clock=None):
         self.hmem = HMEM(clock=clock, persist_dir=persist_dir, actor="payproof")
 
-    def record_verified(self, investigation: dict, action: dict) -> dict | None:
+    def record_verified(self, investigation: dict, action: dict, tenant: str | None = None, consumer: bool = False) -> dict | None:
         if action.get("state") != "VERIFIED" or not (action.get("receipt") or {}).get("postcondition", {}).get("passed"):
             return None  # unverified outcomes never become trusted memory
         patterns = case_patterns(investigation)
         if not patterns:
             return None
         case_id = investigation["case_id"]
+        prefix = self.CONSUMER_PREFIX if consumer else self.SOURCE_PREFIX
         for m in self.hmem.store.all():
-            if m.get("missionId") == case_id and m["source"] == self.SOURCE_PREFIX + action["id"]:
+            if m.get("missionId") == case_id and m["source"] == prefix + action["id"]:
                 return m  # idempotent per action
         from .integrations import record
         record("hmem", None, writes=1)
         content = (f"Precedent {case_id}: " + "; ".join(PATTERN_LABELS.get(p, p) for p in patterns)
                    + f". Outcome: {investigation['proof_status']} / {investigation['verdict']}; "
                    f"action {action['type']} approved by {action['approved_by']} and verified.")
-        return self.hmem.add(content, self.SOURCE_PREFIX + action["id"], type="factual", layer="long_term",
-                             tags=["project:payproof"] + patterns + [f"verdict:{investigation['verdict']}", f"action:{action['type']}"],
+        return self.hmem.add(content, prefix + action["id"], type="factual", layer="long_term",
+                             tags=["project:payproof"] + patterns + [f"verdict:{investigation['verdict']}", f"action:{action['type']}"]
+                             + ([f"tenant:{tenant}"] if tenant else []),
                              confidence=0.8, mission_id=case_id,
                              provenance={"origin": "plan_completion", "learnedAt": self.hmem.clock(), "label": "verified PayProof action",
+                                         "tenant": tenant,
                                          "refs": [case_id, action["id"], action["receipt"]["receipt_id"], investigation["proof_hash"]]})
 
-    def recall(self, investigation: dict, top_n: int = 3) -> dict:
+    def recall(self, investigation: dict, top_n: int = 3, tenant: str | None = None, consumer: bool = False) -> dict:
         patterns = case_patterns(investigation)
         own = investigation["case_id"]
         if not patterns:
@@ -650,8 +664,10 @@ class PrecedentMemory:
         import time as _t
         from .integrations import record
         t0 = _t.monotonic()
+        prefix = self.CONSUMER_PREFIX if consumer else self.SOURCE_PREFIX
         res = self.hmem.query(pattern_query(patterns), top_n=top_n, threshold=0.2,
-                              where=lambda m: m.get("missionId") != own and m["source"].startswith(self.SOURCE_PREFIX))
+                              where=lambda m: m.get("missionId") != own and m["source"].startswith(prefix)
+                              and (tenant is None or f"tenant:{tenant}" in m["tags"]))
         record("hmem", (_t.monotonic() - t0) * 1000, recalls=1)
         out = []
         for it in res["memories"]:

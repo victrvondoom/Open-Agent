@@ -185,7 +185,7 @@ def _quiet(fn, *a):
 
 def run(case_ids, write=True, extended=True):
     plans = load_plans()
-    gt = json.loads((ROOT / "bench" / "ground_truth.json").read_text())["cases"]
+    gt = json.loads((ROOT / "bench" / "ground_truth.json").read_text(encoding="utf-8"))["cases"]
     src = LocalFixtureSource()
     agent_rows, base_rows, lat, per_case = [], [], [], []
     repro = 0
@@ -257,12 +257,12 @@ def run(case_ids, write=True, extended=True):
     if write:
         out = ROOT / "bench" / "results"
         out.mkdir(parents=True, exist_ok=True)
-        (out / "latest.json").write_text(json.dumps(report, indent=2, default=str) + "\n")
+        (out / "latest.json").write_text(json.dumps(report, indent=2, default=str) + "\n", encoding="utf-8")
         md = markdown(report)
         if "evaluation" in report:
             from .evaluation import markdown as ev_markdown
             md = md.replace("## Limitations", ev_markdown(report["evaluation"], report["sample_size"]) + "\n## Limitations")
-        (ROOT / "docs" / "BENCHMARK.md").write_text(md)
+        (ROOT / "docs" / "BENCHMARK.md").write_text(md, encoding="utf-8")
         from .report import write_generated_docs
         write_generated_docs(report)  # deck + README numbers come from this run, never typed by hand
     return report
@@ -310,7 +310,7 @@ def markdown(r):
 
 def main():
     smoke = "--smoke" in sys.argv
-    gt = json.loads((ROOT / "bench" / "ground_truth.json").read_text())["cases"]
+    gt = json.loads((ROOT / "bench" / "ground_truth.json").read_text(encoding="utf-8"))["cases"]
     ids = SMOKE if smoke else sorted(gt)  # benchmark = hand-labelled cases only, never user-filed ones
     r = run(ids, write=not smoke)
     a, b, s = r["agent"], r["baseline"], r["safety"]

@@ -1,0 +1,104 @@
+{
+  "case_id": "CDX-3007",
+  "domain": "airlines",
+  "tenant_id": "north",
+  "jurisdiction": "IN",
+  "title": "Deccan Wings DW-725 cancelled - agent cites a non-existent circular and misquotes a rule",
+  "institution_name": "Deccan Wings",
+  "tags": [
+    "demo",
+    "fabricated_citation"
+  ],
+  "as_of": "2026-10-25T01:25:00Z",
+  "feed_overrides": {
+    "airline_pss": {
+      "as_of": "2026-10-24T19:25:00Z",
+      "status": "ok"
+    },
+    "flight_ops": {
+      "as_of": "2026-10-24T19:25:00Z",
+      "status": "ok"
+    },
+    "payments": {
+      "as_of": "2026-10-24T19:25:00Z",
+      "status": "ok"
+    },
+    "airport_ops": {
+      "as_of": "2026-10-24T19:25:00Z",
+      "status": "ok"
+    }
+  },
+  "dispute": {
+    "id": "CLM-3007",
+    "type": "consumer_claim",
+    "claimant_id": "CUST-3007",
+    "claimant_name": "Priya Sharma",
+    "booking_ref": "6AFA6F",
+    "flight_no": "DW-725",
+    "claim_type": "cancellation_refund_and_compensation",
+    "claimed_refund": "7250.00",
+    "claimed_compensation": "6650.00",
+    "currency": "INR",
+    "narrative": "My Deccan Wings flight DW-725 DEL-BOM was cancelled. I have not received what I am owed.",
+    "filed_at": "2026-10-23T01:25:00Z",
+    "effective_at": "2026-10-23T01:25:00Z",
+    "recorded_at": "2026-10-23T01:25:00Z"
+  },
+  "documents": [
+    {
+      "id": "DOC-3007-ETKT",
+      "kind": "e_ticket",
+      "title": "E-ticket / itinerary receipt",
+      "text": "E-TICKET / ITINERARY RECEIPT\nPassenger: Priya Sharma\nBooking reference (PNR): 6AFA6F\nFlight: DW-725 DEL-BOM departing 20-Sep-2026 06:55 IST\nBase fare INR 5,700.00 | Fuel charge INR 950.00 | Taxes and fees INR 600.00\nTotal paid INR 7,250.00 by credit card"
+    },
+    {
+      "id": "DOC-3007-SMS",
+      "kind": "cancellation_notice",
+      "title": "Cancellation SMS",
+      "text": "Dear Priya, Deccan Wings regrets that flight DW-725 DEL-BOM scheduled 20-Sep-2026 06:55 IST is cancelled. Sent 20-Sep-2026 01:55 IST."
+    }
+  ],
+  "agent_run": {
+    "provenance": "recorded-fixture",
+    "status": "ready_for_human_review",
+    "evidence_summary": "Booking 6AFA6F on DW-725; cancellation communicated by the carrier.",
+    "research_summary": "Cancellation by the carrier triggers refund and, depending on notice, compensation.",
+    "strategy": "File a grievance with the carrier's nodal officer; escalate to the regulator if unresolved.",
+    "appeal_draft": "To the Grievance Officer, Deccan Wings: I request INR 13,900.00 for the cancellation of DW-725 (PNR 6AFA6F) on 20 Sep 2026.",
+    "review_notes": [
+      "Citations to be checked against regulation text."
+    ],
+    "citations": [
+      "DGCA Passenger Charter Circular 07/2025 - mandatory full refund within 48 hours",
+      "CAR Section 3 Series M Part II - refunds within 3 days for credit card purchases"
+    ],
+    "agent_trace": [
+      {
+        "agent": "planner",
+        "status": "completed"
+      },
+      {
+        "agent": "evidence",
+        "status": "completed"
+      },
+      {
+        "agent": "research",
+        "status": "completed"
+      },
+      {
+        "agent": "strategy",
+        "status": "completed"
+      },
+      {
+        "agent": "negotiation",
+        "status": "completed"
+      },
+      {
+        "agent": "review",
+        "status": "completed"
+      }
+    ],
+    "llm_call_count": 0,
+    "workflow_engine": "recorded-fixture"
+  }
+}

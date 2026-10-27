@@ -73,10 +73,21 @@ def run_live_check(app) -> dict:
         return (v["ok"] and p["ok"]), f"/models: {'listed' if v['ok'] else v.get('reason')}; completion: {'ok' if p['ok'] else p.get('reason')}" + \
             (f"; usage {p.get('usage')}" if p.get("usage") else "")
 
+    def reclaim():
+        from .reclaim_bridge import ReclaimBridgeClient
+        client = getattr(app, "reclaim", None) or ReclaimBridgeClient()
+        ping_res = client.ping()
+        if ping_res.get("ok"):
+            return True, (f"RECLAIM health {ping_res.get('health')} ({ping_res.get('environment')}) @ {ping_res['endpoint']}; "
+                          f"tenant 'north' principal sees {ping_res.get('cases_visible_to_tenant', 0)} case(s)")
+        return False, f"RECLAIM check failed: {ping_res.get('error', 'unknown error')}"
+
     for key, name, fn in (("world_model", "Meterless World Model", world_model), ("hmem", "Meterless H-MEM", hmem),
-                          ("scout", "Meterless Scout Intent", scout), ("zetaris", "Zetaris", zetaris), ("nemotron", "NVIDIA Nemotron", nemotron)):
+                          ("scout", "Meterless Scout Intent", scout), ("zetaris", "Zetaris", zetaris), ("nemotron", "NVIDIA Nemotron", nemotron),
+                          ("reclaim", "RECLAIM Multi-Agent", reclaim)):
         ok, detail, ms = _timed(fn)
         checks.append({"key": key, "integration": name, "ok": ok, "ran": ok is not None, "latency_ms": ms, "detail": detail})
     return {"checked_at": time.strftime("%H:%M:%S UTC", time.gmtime()), "case_id": demo, "checks": checks,
             "calls": [f"{c['integration']}: {'ok' if c['ok'] else 'not run' if not c['ran'] else 'FAILED'} ({c['latency_ms']} ms)" for c in checks],
             "status": integration_status()}
+

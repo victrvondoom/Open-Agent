@@ -1,0 +1,104 @@
+{
+  "case_id": "CDX-3008",
+  "domain": "airlines",
+  "tenant_id": "north",
+  "jurisdiction": "IN",
+  "title": "Saffron Air SF-187 cancelled - carrier says refunded weeks ago; card shows no credit",
+  "institution_name": "Saffron Air",
+  "tags": [
+    "demo",
+    "airline_refund_unconfirmed"
+  ],
+  "as_of": "2026-11-02T15:55:00Z",
+  "feed_overrides": {
+    "airline_pss": {
+      "as_of": "2026-11-02T09:55:00Z",
+      "status": "ok"
+    },
+    "flight_ops": {
+      "as_of": "2026-11-02T09:55:00Z",
+      "status": "ok"
+    },
+    "payments": {
+      "as_of": "2026-11-02T09:55:00Z",
+      "status": "ok"
+    },
+    "airport_ops": {
+      "as_of": "2026-11-02T09:55:00Z",
+      "status": "ok"
+    }
+  },
+  "dispute": {
+    "id": "CLM-3008",
+    "type": "consumer_claim",
+    "claimant_id": "CUST-3008",
+    "claimant_name": "Neha Kapoor",
+    "booking_ref": "9JQ8JU",
+    "flight_no": "SF-187",
+    "claim_type": "cancellation_refund_and_compensation",
+    "claimed_refund": "9970.00",
+    "claimed_compensation": "7500.00",
+    "currency": "INR",
+    "narrative": "My Saffron Air flight SF-187 BOM-GOI was cancelled. I have not received what I am owed.",
+    "filed_at": "2026-10-31T15:55:00Z",
+    "effective_at": "2026-10-31T15:55:00Z",
+    "recorded_at": "2026-10-31T15:55:00Z"
+  },
+  "documents": [
+    {
+      "id": "DOC-3008-ETKT",
+      "kind": "e_ticket",
+      "title": "E-ticket / itinerary receipt",
+      "text": "E-TICKET / ITINERARY RECEIPT\nPassenger: Neha Kapoor\nBooking reference (PNR): 9JQ8JU\nFlight: SF-187 BOM-GOI departing 26-Sep-2026 21:25 IST\nBase fare INR 8,500.00 | Fuel charge INR 850.00 | Taxes and fees INR 620.00\nTotal paid INR 9,970.00 by credit card"
+    },
+    {
+      "id": "DOC-3008-SMS",
+      "kind": "cancellation_notice",
+      "title": "Cancellation SMS",
+      "text": "Dear Neha, Saffron Air regrets that flight SF-187 BOM-GOI scheduled 26-Sep-2026 21:25 IST is cancelled. Sent 26-Sep-2026 07:25 IST."
+    }
+  ],
+  "agent_run": {
+    "provenance": "recorded-fixture",
+    "status": "ready_for_human_review",
+    "evidence_summary": "Booking 9JQ8JU on SF-187; cancellation communicated by the carrier.",
+    "research_summary": "Cancellation by the carrier triggers refund and, depending on notice, compensation.",
+    "strategy": "File a grievance with the carrier's nodal officer; escalate to the regulator if unresolved.",
+    "appeal_draft": "To the Grievance Officer, Saffron Air: I request INR 17,470.00 for the cancellation of SF-187 (PNR 9JQ8JU) on 26 Sep 2026.",
+    "review_notes": [
+      "Citations to be checked against regulation text."
+    ],
+    "citations": [
+      "DGCA CAR Section 3, Series M, Part IV - compensation in addition to refund when a cancellation is notified less than 24 hours before departure",
+      "CAR Section 3 Series M Part II - refunds within 7 days for credit card purchases"
+    ],
+    "agent_trace": [
+      {
+        "agent": "planner",
+        "status": "completed"
+      },
+      {
+        "agent": "evidence",
+        "status": "completed"
+      },
+      {
+        "agent": "research",
+        "status": "completed"
+      },
+      {
+        "agent": "strategy",
+        "status": "completed"
+      },
+      {
+        "agent": "negotiation",
+        "status": "completed"
+      },
+      {
+        "agent": "review",
+        "status": "completed"
+      }
+    ],
+    "llm_call_count": 0,
+    "workflow_engine": "recorded-fixture"
+  }
+}

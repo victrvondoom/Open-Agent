@@ -14,6 +14,7 @@ import os
 import time
 
 from . import llm, sources
+from . import reclaim_bridge
 from . import world_model as wm
 
 _RUNTIME = {
@@ -117,6 +118,9 @@ def integration_status():
          "data": "LIVE model output (validated)" if ls["last_ok_at"] else "FALLBACK: deterministic template narrator",
          "detail": (f"{ls['ok_calls']} ok / {ls['failed_calls']} failed calls; {ls['tokens_total']} tokens; model listed: {ls['model_listed']}"
                     if cfg["enabled"] else "NVIDIA_API_KEY / LLM_BASE_URL not set")},
+        {"sponsor": "RECLAIM Multi-Agent", "short": "RECLAIM", "key": "reclaim", "required": True,
+         "capability": "8-Domain Legal Intake, LangGraph Specialist Agents, Regulation Splitter & Document Vault",
+         **{k: v for k, v in reclaim_bridge.bridge_status().items() if k not in ("sponsor", "short", "key", "capability")}},
         {"sponsor": "Cursor", "short": "Cursor", "key": "cursor", "required": True, "capability": "Development environment (not a runtime integration)",
          "state": "N/A", "configured": None, "connectivity": "n/a", "provider": None, "last_success": None, "latency_ms": None,
          "last_error": None, "used_in_latest": None, "data": "n/a", "detail": "See docs/INTEGRATIONS.md"},

@@ -1,0 +1,104 @@
+{
+  "case_id": "CDX-3010",
+  "domain": "airlines",
+  "tenant_id": "north",
+  "jurisdiction": "IN",
+  "title": "Coastal Jet CJ-570 cancelled - booking record absent from airline systems",
+  "institution_name": "Coastal Jet",
+  "tags": [
+    "demo",
+    "missing_booking"
+  ],
+  "as_of": "2026-10-12T00:40:00Z",
+  "feed_overrides": {
+    "airline_pss": {
+      "as_of": "2026-10-11T18:40:00Z",
+      "status": "ok"
+    },
+    "flight_ops": {
+      "as_of": "2026-10-11T18:40:00Z",
+      "status": "ok"
+    },
+    "payments": {
+      "as_of": "2026-10-11T18:40:00Z",
+      "status": "ok"
+    },
+    "airport_ops": {
+      "as_of": "2026-10-11T18:40:00Z",
+      "status": "ok"
+    }
+  },
+  "dispute": {
+    "id": "CLM-3010",
+    "type": "consumer_claim",
+    "claimant_id": "CUST-3010",
+    "claimant_name": "Sanjay Rao",
+    "booking_ref": "7LKP5X",
+    "flight_no": "CJ-570",
+    "claim_type": "cancellation_refund_and_compensation",
+    "claimed_refund": "8000.00",
+    "claimed_compensation": "5000.00",
+    "currency": "INR",
+    "narrative": "My Coastal Jet flight CJ-570 BLR-MAA was cancelled. I have not received what I am owed.",
+    "filed_at": "2026-10-10T00:40:00Z",
+    "effective_at": "2026-10-10T00:40:00Z",
+    "recorded_at": "2026-10-10T00:40:00Z"
+  },
+  "documents": [
+    {
+      "id": "DOC-3010-ETKT",
+      "kind": "e_ticket",
+      "title": "E-ticket / itinerary receipt",
+      "text": "E-TICKET / ITINERARY RECEIPT\nPassenger: Sanjay Rao\nBooking reference (PNR): 7LKP5X\nFlight: CJ-570 BLR-MAA departing 13-Sep-2026 06:10 IST\nBase fare INR 6,150.00 | Fuel charge INR 700.00 | Taxes and fees INR 1,150.00\nTotal paid INR 8,000.00 by credit card"
+    },
+    {
+      "id": "DOC-3010-SMS",
+      "kind": "cancellation_notice",
+      "title": "Cancellation SMS",
+      "text": "Dear Sanjay, Coastal Jet regrets that flight CJ-570 BLR-MAA scheduled 13-Sep-2026 06:10 IST is cancelled. Sent 12-Sep-2026 10:10 IST."
+    }
+  ],
+  "agent_run": {
+    "provenance": "recorded-fixture",
+    "status": "ready_for_human_review",
+    "evidence_summary": "Booking 7LKP5X on CJ-570; cancellation communicated by the carrier.",
+    "research_summary": "Cancellation by the carrier triggers refund and, depending on notice, compensation.",
+    "strategy": "File a grievance with the carrier's nodal officer; escalate to the regulator if unresolved.",
+    "appeal_draft": "To the Grievance Officer, Coastal Jet: I request INR 13,000.00 for the cancellation of CJ-570 (PNR 7LKP5X) on 13 Sep 2026.",
+    "review_notes": [
+      "Citations to be checked against regulation text."
+    ],
+    "citations": [
+      "DGCA CAR Section 3, Series M, Part IV - compensation in addition to refund when a cancellation is notified less than 24 hours before departure",
+      "CAR Section 3 Series M Part II - refunds within 7 days for credit card purchases"
+    ],
+    "agent_trace": [
+      {
+        "agent": "planner",
+        "status": "completed"
+      },
+      {
+        "agent": "evidence",
+        "status": "completed"
+      },
+      {
+        "agent": "research",
+        "status": "completed"
+      },
+      {
+        "agent": "strategy",
+        "status": "completed"
+      },
+      {
+        "agent": "negotiation",
+        "status": "completed"
+      },
+      {
+        "agent": "review",
+        "status": "completed"
+      }
+    ],
+    "llm_call_count": 0,
+    "workflow_engine": "recorded-fixture"
+  }
+}

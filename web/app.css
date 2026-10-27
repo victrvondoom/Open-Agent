@@ -1,33 +1,34 @@
-/* PayProof Decision Room — cream / white light theme and a warm dark theme, with elevation.
+/* RECLAIM x Open-Agent Decision Room — Dark Charcoal x Warm Cream x Soft Gold.
    Every color is a token; components never hardcode colors. */
 :root {
   color-scheme: light;
-  --bg: #f4eee3;            /* cream canvas */
-  --bg-grad: radial-gradient(1200px 600px at 10% -10%, #fbf7ef 0%, rgba(251,247,239,0) 60%), #f4eee3;
-  --surface: #fffdf9;       /* white elevated cards */
-  --surface-2: #faf5ec;     /* inset wells inside cards */
-  --surface-3: #f3ecdf;     /* hover / pressed */
-  --line: #e6ddcc;
-  --line-strong: #d8cdb8;
-  --text: #24201a;
-  --text-2: #4a4337;
-  --dim: #857b6b;
-  --accent: #1f7a5c;        /* evergreen */
-  --accent-ink: #ffffff;
-  --accent-soft: #e3f1ea;
-  --accent2: #2d5c99;       /* ink blue */
-  --accent2-soft: #e6edf8;
-  --warn: #a86c12; --warn-soft: #fbefd9;
-  --bad: #b8443c;  --bad-soft: #f9e4e1;
-  --violet: #6a52b3; --violet-soft: #eee9fa;
-  --verified: var(--accent); --verified-soft: var(--accent-soft);
+  --bg: #FAF7F0;            /* Warm cream canvas */
+  --bg-grad: radial-gradient(1200px 600px at 10% -10%, #FFFFFF 0%, rgba(250,247,240,0) 65%), #FAF7F0;
+  --surface: #FFFFFF;       /* White elevated cards */
+  --surface-2: #F5F0E6;     /* Cream inset wells */
+  --surface-3: #EBE4D5;     /* Hover / pressed */
+  --line: #E2DAC9;
+  --line-strong: #D3C7AF;
+  --text: #222824;          /* Charcoal text */
+  --text-2: #3E4741;
+  --dim: #737E77;
+  --accent: #C9A66B;        /* Warm gold */
+  --accent-ink: #151816;
+  --accent-soft: #F7EFE1;
+  --accent2: #8FA99A;       /* Muted sage */
+  --accent2-soft: #EAF2ED;
+  --warn: #C9A66B; --warn-soft: #FBF4E8;
+  --bad: #D9827A;  --bad-soft: #FDECEA;
+  --violet: #7E6BB0; --violet-soft: #EFEBFA;
+  --sage: #8FA99A;
+  --verified: #8FA99A; --verified-soft: #EAF2ED;
   --disputed: var(--warn); --needs: var(--violet); --rejected: var(--bad);
-  --graph-node: #fffdf9; --graph-edge: #cfc3ad;
-  --code-bg: #f7f1e6;
-  --e1: 0 1px 2px rgba(74, 56, 24, .06), 0 1px 1px rgba(74, 56, 24, .04);
-  --e2: 0 1px 2px rgba(74, 56, 24, .05), 0 8px 24px -10px rgba(74, 56, 24, .22);
-  --e3: 0 2px 6px rgba(74, 56, 24, .08), 0 28px 60px -18px rgba(60, 44, 16, .38);
-  --hl: inset 0 1px 0 rgba(255, 255, 255, .9);
+  --graph-node: #FFFFFF; --graph-edge: #D3C7AF;
+  --code-bg: #F5F0E6;
+  --e1: 0 1px 3px rgba(34, 40, 36, .05), 0 1px 2px rgba(34, 40, 36, .03);
+  --e2: 0 4px 16px -4px rgba(34, 40, 36, .08), 0 1px 3px rgba(34, 40, 36, .04);
+  --e3: 0 12px 36px -8px rgba(34, 40, 36, .14), 0 2px 6px rgba(34, 40, 36, .06);
+  --hl: inset 0 1px 0 rgba(255, 255, 255, .95);
   --radius: 16px;
   --mono: ui-monospace, SFMono-Regular, "JetBrains Mono", Menlo, Consolas, monospace;
   --serif: "Iowan Old Style", "Palatino Linotype", Palatino, "Book Antiqua", Georgia, serif;
@@ -35,44 +36,56 @@
 }
 :root[data-theme="dark"] {
   color-scheme: dark;
-  --bg: #12110f;
-  --bg-grad: radial-gradient(1100px 560px at 8% -12%, #1f1c18 0%, rgba(31,28,24,0) 60%), #12110f;
-  --surface: #1c1a17; --surface-2: #23211d; --surface-3: #2b2823;
-  --line: #322e28; --line-strong: #423c34;
-  --text: #f2ede4; --text-2: #d6cfc3; --dim: #a1988a;
-  --accent: #6fcf9f; --accent-ink: #0f1a14; --accent-soft: #17291f;
-  --accent2: #8fb4f2; --accent2-soft: #19243a;
-  --warn: #e9b65c; --warn-soft: #2e2413;
-  --bad: #ef8c82; --bad-soft: #321a17;
-  --violet: #c1b2f3; --violet-soft: #241e36;
-  --graph-node: #23211d; --graph-edge: #4a443a;
-  --code-bg: #171512;
-  --e1: 0 1px 2px rgba(0, 0, 0, .45);
-  --e2: 0 1px 2px rgba(0, 0, 0, .5), 0 12px 28px -12px rgba(0, 0, 0, .75);
-  --e3: 0 2px 8px rgba(0, 0, 0, .55), 0 30px 70px -20px rgba(0, 0, 0, .85);
-  --hl: inset 0 1px 0 rgba(255, 255, 255, .045);
+  --bg: #151816;            /* Main dark charcoal background */
+  --bg-grad: radial-gradient(1100px 560px at 8% -12%, #202522 0%, rgba(21,24,22,0) 65%), #151816;
+  --surface: #202522;       /* Secondary dark surface */
+  --surface-2: #292E2A;     /* Elevated surface */
+  --surface-3: #343B36;
+  --line: #2D352F; --line-strong: #3F4B42;
+  --text: #F5F0E6;          /* Primary cream text */
+  --text-2: #D9D2C5; --dim: #9DA8A0;
+  --accent: #C9A66B;        /* Warm gold accent */
+  --accent-ink: #151816; --accent-soft: #322B1E;
+  --accent2: #8FA99A;       /* Muted sage */
+  --accent2-soft: #1D2B23;
+  --warn: #E4BC78; --warn-soft: #31281A;
+  --bad: #D9827A; --bad-soft: #351C1A;
+  --violet: #B6A5E8; --violet-soft: #272138;
+  --sage: #8FA99A;
+  --verified: #8FA99A; --verified-soft: #1D2B23;
+  --disputed: var(--warn); --needs: var(--violet); --rejected: var(--bad);
+  --graph-node: #202522; --graph-edge: #434F47;
+  --code-bg: #1A1F1C;
+  --e1: 0 1px 2px rgba(0, 0, 0, .5);
+  --e2: 0 4px 18px -4px rgba(0, 0, 0, .65), 0 1px 3px rgba(0, 0, 0, .4);
+  --e3: 0 14px 40px -10px rgba(0, 0, 0, .8), 0 3px 8px rgba(0, 0, 0, .5);
+  --hl: inset 0 1px 0 rgba(255, 255, 255, .05);
 }
 @media (prefers-color-scheme: dark) {
   :root:not([data-theme="light"]) {
     color-scheme: dark;
-    --bg: #12110f;
-    --bg-grad: radial-gradient(1100px 560px at 8% -12%, #1f1c18 0%, rgba(31,28,24,0) 60%), #12110f;
-    --surface: #1c1a17; --surface-2: #23211d; --surface-3: #2b2823;
-    --line: #322e28; --line-strong: #423c34;
-    --text: #f2ede4; --text-2: #d6cfc3; --dim: #a1988a;
-    --accent: #6fcf9f; --accent-ink: #0f1a14; --accent-soft: #17291f;
-    --accent2: #8fb4f2; --accent2-soft: #19243a;
-    --warn: #e9b65c; --warn-soft: #2e2413;
-    --bad: #ef8c82; --bad-soft: #321a17;
-    --violet: #c1b2f3; --violet-soft: #241e36;
-    --graph-node: #23211d; --graph-edge: #4a443a;
-    --code-bg: #171512;
-    --e1: 0 1px 2px rgba(0, 0, 0, .45);
-    --e2: 0 1px 2px rgba(0, 0, 0, .5), 0 12px 28px -12px rgba(0, 0, 0, .75);
-    --e3: 0 2px 8px rgba(0, 0, 0, .55), 0 30px 70px -20px rgba(0, 0, 0, .85);
-    --hl: inset 0 1px 0 rgba(255, 255, 255, .045);
+    --bg: #151816;
+    --bg-grad: radial-gradient(1100px 560px at 8% -12%, #202522 0%, rgba(21,24,22,0) 65%), #151816;
+    --surface: #202522; --surface-2: #292E2A; --surface-3: #343B36;
+    --line: #2D352F; --line-strong: #3F4B42;
+    --text: #F5F0E6; --text-2: #D9D2C5; --dim: #9DA8A0;
+    --accent: #C9A66B; --accent-ink: #151816; --accent-soft: #322B1E;
+    --accent2: #8FA99A; --accent2-soft: #1D2B23;
+    --warn: #E4BC78; --warn-soft: #31281A;
+    --bad: #D9827A; --bad-soft: #351C1A;
+    --violet: #B6A5E8; --violet-soft: #272138;
+    --sage: #8FA99A;
+    --verified: #8FA99A; --verified-soft: #1D2B23;
+    --disputed: var(--warn); --needs: var(--violet); --rejected: var(--bad);
+    --graph-node: #202522; --graph-edge: #434F47;
+    --code-bg: #1A1F1C;
+    --e1: 0 1px 2px rgba(0, 0, 0, .5);
+    --e2: 0 4px 18px -4px rgba(0, 0, 0, .65), 0 1px 3px rgba(0, 0, 0, .4);
+    --e3: 0 14px 40px -10px rgba(0, 0, 0, .8), 0 3px 8px rgba(0, 0, 0, .5);
+    --hl: inset 0 1px 0 rgba(255, 255, 255, .05);
   }
 }
+
 
 * { box-sizing: border-box; }
 html, body { margin: 0; background: var(--bg-grad); background-attachment: fixed; color: var(--text);
@@ -343,3 +356,71 @@ main.loading::after { content: "Investigating…"; position: absolute; inset: 0;
 .top button, .user { white-space: nowrap; }
 .brand { min-width: 0; flex: 1 1 260px; }
 @media (min-width: 1200px) and (max-width: 1500px) { .brand .sub { display: none; } }
+
+/* ---------- Unified Domain Tabs & Filters ---------- */
+.domain-tabs { display: flex; gap: 4px; background: var(--surface-2); padding: 4px; border-radius: 12px; border: 1px solid var(--line); }
+.tab-btn { background: transparent; border: 0; box-shadow: none; border-radius: 9px; padding: 6px 12px; font-size: 12px; font-weight: 600; color: var(--dim); transition: all .15s ease; cursor: pointer; }
+.tab-btn:hover { color: var(--text); background: var(--surface-3); }
+.tab-btn.active { background: var(--surface); color: var(--text); box-shadow: var(--e1); border: 1px solid var(--line-strong); }
+
+.queue-search-box { padding: 10px 14px; border-bottom: 1px solid var(--line); background: var(--surface); }
+.queue-search-box input { width: 100%; font: inherit; font-size: 12.5px; background: var(--surface-2); color: var(--text); border: 1px solid var(--line); border-radius: 8px; padding: 6px 10px; }
+.queue-search-box input:focus { outline: 2px solid var(--accent); border-color: transparent; }
+
+/* ---------- Unified Explainability Decision Room (3-Column Layout) ---------- */
+.dr-overview-strip { display: grid; grid-template-columns: repeat(auto-fit, minmax(140px, 1fr)); gap: 10px; margin-bottom: 18px; }
+.dr-stat-card { background: var(--surface); border: 1px solid var(--line); border-radius: 12px; padding: 10px 14px; box-shadow: var(--e1); }
+.dr-stat-card .sl { font-size: 10.5px; text-transform: uppercase; font-weight: 650; color: var(--dim); letter-spacing: .8px; }
+.dr-stat-card .sv { font-size: 18px; font-weight: 700; font-family: var(--mono); color: var(--text); margin-top: 2px; }
+
+.dr-3col { display: grid; grid-template-columns: 1fr 1.35fr 1fr; gap: 16px; margin-bottom: 24px; }
+@media (max-width: 1280px) {
+  .dr-3col { grid-template-columns: 1fr; }
+}
+.dr-col { display: flex; flex-direction: column; gap: 16px; min-width: 0; }
+.dr-card { background: var(--surface); border: 1px solid var(--line); border-radius: var(--radius); padding: 18px 20px; box-shadow: var(--e2), var(--hl); }
+.dr-card h3 { margin: 0 0 12px; font-size: 12px; text-transform: uppercase; letter-spacing: 1.2px; color: var(--dim); display: flex; justify-content: space-between; align-items: center; font-weight: 700; border-bottom: 1px solid var(--line); padding-bottom: 8px; }
+.dr-card h3 .badge { font-size: 10px; font-weight: 700; padding: 2px 7px; border-radius: 999px; text-transform: none; letter-spacing: 0; }
+
+/* Timeline & Agent steps */
+.agent-timeline { display: flex; flex-direction: column; gap: 10px; margin: 12px 0; }
+.agent-step { display: flex; gap: 12px; align-items: flex-start; padding: 10px 12px; border-radius: 10px; background: var(--surface-2); border: 1px solid var(--line); }
+.agent-step .step-icon { width: 26px; height: 26px; border-radius: 8px; background: var(--accent-soft); color: var(--accent); display: grid; place-items: center; font-size: 12px; font-weight: 700; flex: none; }
+.agent-step .step-content { flex: 1; min-width: 0; }
+.agent-step .step-title { font-weight: 650; font-size: 12.5px; display: flex; justify-content: space-between; }
+.agent-step .step-desc { font-size: 12px; color: var(--text-2); margin-top: 3px; }
+
+/* Contradictions & Alerts */
+.contra-alert { background: var(--bad-soft); border: 1px solid var(--bad); border-radius: 12px; padding: 12px 14px; margin: 10px 0; font-size: 12.5px; }
+.contra-alert .ctitle { font-weight: 700; color: var(--bad); display: flex; justify-content: space-between; align-items: center; margin-bottom: 4px; }
+.contra-alert .cdesc { color: var(--text); }
+.contra-alert .csub { color: var(--dim); font-size: 11.5px; margin-top: 4px; }
+
+/* Nemotron Explanation Box */
+.nemotron-container { background: color-mix(in srgb, var(--surface-2) 90%, var(--accent-soft)); border: 1px solid var(--accent); border-radius: 14px; padding: 16px; margin: 12px 0; }
+.nemotron-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px; }
+.nemotron-header span { font-weight: 700; font-size: 13px; color: var(--accent); display: flex; align-items: center; gap: 6px; }
+.nemotron-body { font-size: 13.5px; line-height: 1.55; color: var(--text); margin-bottom: 12px; }
+.nemotron-counter { background: var(--surface); border-left: 3px solid var(--warn); padding: 8px 12px; border-radius: 0 8px 8px 0; font-size: 12.5px; margin-top: 8px; color: var(--text-2); }
+.nemotron-uncertainty { background: var(--surface); border-left: 3px solid var(--violet); padding: 8px 12px; border-radius: 0 8px 8px 0; font-size: 12.5px; margin-top: 8px; color: var(--text-2); }
+
+/* Human Action & Sandbox Approval Box */
+.approval-panel { border: 2px solid var(--accent); border-radius: 14px; padding: 16px; background: color-mix(in srgb, var(--accent-soft) 30%, var(--surface)); margin-top: 14px; }
+.approval-panel h4 { margin: 0 0 8px; color: var(--text); font-size: 14px; display: flex; justify-content: space-between; align-items: center; }
+.approval-panel p { font-size: 12.5px; color: var(--text-2); margin: 0 0 12px; }
+.approval-panel textarea { width: 100%; font: inherit; font-size: 12.5px; background: var(--surface); color: var(--text); border: 1px solid var(--line-strong); border-radius: 8px; padding: 8px 10px; margin-bottom: 12px; resize: vertical; min-height: 60px; }
+.approval-actions { display: flex; gap: 10px; justify-content: flex-end; }
+.receipt-box { background: var(--surface); border: 1px solid var(--verified); border-radius: 12px; padding: 12px 14px; margin-top: 12px; font-size: 12px; }
+.receipt-box .rtitle { font-weight: 700; color: var(--verified); display: flex; justify-content: space-between; margin-bottom: 6px; }
+
+/* Documents & Citations List */
+.doc-item { display: flex; justify-content: space-between; align-items: center; padding: 8px 10px; border-radius: 8px; background: var(--surface-2); border: 1px solid var(--line); margin-bottom: 6px; font-size: 12px; }
+.doc-name { font-weight: 600; display: flex; align-items: center; gap: 6px; }
+.cite-tag { font-size: 11px; padding: 3px 8px; border-radius: 6px; background: var(--surface-2); border: 1px solid var(--line); display: inline-flex; align-items: center; gap: 5px; margin: 3px; }
+.cite-tag.ok { border-color: var(--verified); color: var(--verified); background: var(--verified-soft); }
+.cite-tag.unverified { border-color: var(--bad); color: var(--bad); background: var(--bad-soft); }
+
+/* Intake Form Tabs in Drawer */
+.intake-tabs { display: flex; gap: 6px; margin-bottom: 16px; border-bottom: 1px solid var(--line); padding-bottom: 10px; }
+.intake-tab-btn { background: var(--surface-2); border: 1px solid var(--line); border-radius: 8px; padding: 7px 14px; font-size: 13px; font-weight: 600; cursor: pointer; color: var(--dim); }
+.intake-tab-btn.active { background: var(--accent); color: var(--accent-ink); border-color: transparent; }

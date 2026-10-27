@@ -1,0 +1,222 @@
+{
+  "rulebook_version": "consumer-in-2026.10",
+  "as_of": "2026-10-27",
+  "jurisdiction": "IN",
+  "_disclaimer": "Curated paraphrases prepared for this hackathon demo so citations can be checked against a fixed corpus. They are NOT verbatim regulatory text and NOT legal advice. Confirm every provision against the current official instrument before any real filing. The engine abstains (NEEDS_HUMAN_REVIEW) where a determination needs legal interpretation it does not encode.",
+  "approval_limits": {
+    "finance_approver": "25000.00",
+    "controller": "1000000.00"
+  },
+  "freshness_max_age_hours": {
+    "airline_pss": 72,
+    "flight_ops": 72,
+    "payments": 48,
+    "airport_ops": 168
+  },
+  "settlement_window_days": 7,
+  "rules": [
+    {
+      "rule_id": "IN-AIR-CANCEL-NOTICE",
+      "domain": "airlines",
+      "authority": "DGCA",
+      "instrument": "Civil Aviation Requirements, Section 3 (Air Transport), Series M, Part IV",
+      "instrument_aliases": [
+        "CAR Section 3 Series M Part IV",
+        "CAR-M-IV",
+        "DGCA CAR M Part IV",
+        "Section 3 Series M Part IV"
+      ],
+      "provision": "Cancellations: passenger notification and alternatives",
+      "keywords": [
+        "two weeks",
+        "24 hours",
+        "alternate flight",
+        "inform",
+        "notice",
+        "notified"
+      ],
+      "text": "When a carrier cancels a flight it must inform passengers. Notice of at least two weeks: arrange an alternate flight or refund as acceptable to the passenger. Notice of less than two weeks but at least 24 hours: offer an alternate flight departing within two hours of the original departure, or a refund as acceptable to the passenger.",
+      "text_kind": "paraphrase",
+      "parameters": {
+        "full_notice_hours": 336,
+        "min_notice_hours": 24,
+        "alternate_window_minutes": 120
+      }
+    },
+    {
+      "rule_id": "IN-AIR-CANCEL-REFUND",
+      "domain": "airlines",
+      "authority": "DGCA",
+      "instrument": "Civil Aviation Requirements, Section 3 (Air Transport), Series M, Part IV",
+      "instrument_aliases": [
+        "CAR Section 3 Series M Part IV",
+        "CAR-M-IV",
+        "DGCA CAR M Part IV",
+        "Section 3 Series M Part IV"
+      ],
+      "provision": "Cancellations: refund of the ticket when no alternate flight is accepted",
+      "keywords": [
+        "refund of the ticket",
+        "cost of ticket",
+        "refund of ticket",
+        "entitled to a refund"
+      ],
+      "text": "A passenger whose flight is cancelled by the carrier and who does not accept an alternate flight is entitled to a refund of the ticket.",
+      "text_kind": "paraphrase",
+      "parameters": {}
+    },
+    {
+      "rule_id": "IN-AIR-CANCEL-COMP",
+      "domain": "airlines",
+      "authority": "DGCA",
+      "instrument": "Civil Aviation Requirements, Section 3 (Air Transport), Series M, Part IV",
+      "instrument_aliases": [
+        "CAR Section 3 Series M Part IV",
+        "CAR-M-IV",
+        "DGCA CAR M Part IV",
+        "Section 3 Series M Part IV"
+      ],
+      "provision": "Cancellations: compensation in addition to refund",
+      "keywords": [
+        "compensation",
+        "block time",
+        "basic fare",
+        "fuel charge",
+        "whichever is less",
+        "in addition to refund"
+      ],
+      "text": "If the carrier did not give the required notice or alternative, it pays compensation in addition to the refund: the lesser of a block-time based amount (INR 5,000 up to one hour; INR 7,500 above one and up to two hours; INR 10,000 above two hours) and the booked one-way basic fare plus airline fuel charge.",
+      "text_kind": "paraphrase",
+      "parameters": {
+        "slabs": [
+          {
+            "max_block_minutes": 60,
+            "cap": "5000.00"
+          },
+          {
+            "max_block_minutes": 120,
+            "cap": "7500.00"
+          },
+          {
+            "max_block_minutes": null,
+            "cap": "10000.00"
+          }
+        ]
+      }
+    },
+    {
+      "rule_id": "IN-AIR-EXTRAORDINARY",
+      "domain": "airlines",
+      "authority": "DGCA",
+      "instrument": "Civil Aviation Requirements, Section 3 (Air Transport), Series M, Part IV",
+      "instrument_aliases": [
+        "CAR Section 3 Series M Part IV",
+        "CAR-M-IV",
+        "DGCA CAR M Part IV",
+        "Section 3 Series M Part IV"
+      ],
+      "provision": "Extraordinary circumstances: no compensation",
+      "keywords": [
+        "extraordinary circumstances",
+        "beyond the control",
+        "weather",
+        "natural disaster",
+        "force majeure"
+      ],
+      "text": "Compensation is not payable when the cancellation is caused by extraordinary circumstances beyond the carrier's control (for example weather, natural disaster, security or air-traffic restrictions). The refund entitlement is unaffected.",
+      "text_kind": "paraphrase",
+      "parameters": {
+        "categories": [
+          "WEATHER",
+          "ATC_RESTRICTION",
+          "SECURITY",
+          "AIRSPACE_CLOSURE",
+          "NATURAL_DISASTER",
+          "STRIKE"
+        ],
+        "corroboration_window_hours": 6
+      }
+    },
+    {
+      "rule_id": "IN-AIR-REFUND-TAT",
+      "domain": "airlines",
+      "authority": "DGCA",
+      "instrument": "Civil Aviation Requirements, Section 3 (Air Transport), Series M, Part II",
+      "instrument_aliases": [
+        "CAR Section 3 Series M Part II",
+        "CAR-M-II",
+        "DGCA CAR M Part II",
+        "Section 3 Series M Part II"
+      ],
+      "provision": "Refund timelines by mode of payment",
+      "keywords": [
+        "refunds within",
+        "refund within",
+        "credit card",
+        "7 days",
+        "seven days",
+        "cash",
+        "travel agent",
+        "30 days",
+        "timeline"
+      ],
+      "text": "Refunds are to be completed within 7 days for credit-card purchases, immediately for cash purchases at the airline office, and within 30 days for purchases through a travel agent or portal.",
+      "text_kind": "paraphrase",
+      "parameters": {
+        "tat_days": {
+          "credit_card": 7,
+          "cash": 0,
+          "travel_agent": 30
+        }
+      }
+    },
+    {
+      "rule_id": "IN-AIR-CREDIT-SHELL",
+      "domain": "airlines",
+      "authority": "DGCA",
+      "instrument": "Civil Aviation Requirements, Section 3 (Air Transport), Series M, Part II",
+      "instrument_aliases": [
+        "CAR Section 3 Series M Part II",
+        "CAR-M-II",
+        "DGCA CAR M Part II",
+        "Section 3 Series M Part II"
+      ],
+      "provision": "Credit shell only at the passenger's option",
+      "keywords": [
+        "credit shell",
+        "voucher",
+        "option of the passenger",
+        "default practice"
+      ],
+      "text": "Holding a refund as a credit shell is the passenger's option, not the carrier's default practice; a credit shell issued without the passenger's consent is not a refund.",
+      "text_kind": "paraphrase",
+      "parameters": {}
+    },
+    {
+      "rule_id": "IN-UPI-FAILED-TAT",
+      "domain": "banking",
+      "authority": "RBI",
+      "instrument": "RBI circular on harmonisation of turn-around time and customer compensation for failed transactions (20 September 2019)",
+      "instrument_aliases": [
+        "RBI TAT circular",
+        "RBI/2019-20/67",
+        "DPSS.CO.PD No.629/02.01.014/2019-20",
+        "harmonisation of TAT"
+      ],
+      "provision": "UPI: account debited but beneficiary not credited",
+      "keywords": [
+        "UPI",
+        "T+1",
+        "auto-reversal",
+        "failed transaction",
+        "INR 100 per day"
+      ],
+      "text": "For a UPI transfer where the customer's account is debited but the beneficiary is not credited, the amount is to be reversed by T+1; beyond that the bank pays compensation of INR 100 per day of delay.",
+      "text_kind": "paraphrase",
+      "parameters": {
+        "reversal_days": 1,
+        "compensation_per_day": "100.00"
+      }
+    }
+  ]
+}

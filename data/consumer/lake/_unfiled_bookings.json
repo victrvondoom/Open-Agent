@@ -1,0 +1,20 @@
+[
+  {
+    "booking_ref": "6N8BJP",
+    "passenger_name": "Asha Raman",
+    "flight_no": "DW-905",
+    "carrier": "Deccan Wings",
+    "route": "GOI-HYD",
+    "scheduled_departure": "2026-09-25T17:25:00+05:30",
+    "total_paid": "7090.00"
+  },
+  {
+    "booking_ref": "YMS794",
+    "passenger_name": "Priya Sharma",
+    "flight_no": "CJ-395",
+    "carrier": "Coastal Jet",
+    "route": "MAA-COK",
+    "scheduled_departure": "2026-10-06T17:40:00+05:30",
+    "total_paid": "10860.00"
+  }
+]

@@ -113,21 +113,22 @@ class ModelClient:
     def identity(self):
         return f"{self.cfg['provider']}:{self.cfg['model']}" if self.cfg["enabled"] else "deterministic-fallback"
 
-    def narrate(self, role: str, facts: dict, fallback_claims: list[dict]) -> tuple[list[dict], dict]:
+    def narrate(self, role: str, facts: dict, fallback_claims: list[dict], system: str | None = None) -> tuple[list[dict], dict]:
         meta = {"role": role, "model": "deterministic-fallback", "provider": None, "latency_ms": 0, "status": "fallback"}
         if not self.cfg["enabled"] or len(self.calls) >= MAX_CALLS_PER_RUN:
             meta["reason"] = "model not configured or disabled for this path" if not self.cfg["enabled"] else "call budget exhausted"
             self.calls.append(meta)
             return fallback_claims, meta
+        system = system or SYSTEM
         prompt = json.dumps({"task": role, "facts": facts}, default=str, sort_keys=True)
-        key = hashlib.sha256((self.cfg["model"] + role + prompt).encode()).hexdigest()
+        key = hashlib.sha256((self.cfg["model"] + role + system + prompt).encode()).hexdigest()
         if key in _CACHE:
             claims, cached = _CACHE[key]
             meta = {**cached, "cached": True}
             self.calls.append(meta)
             return claims, meta
         body = json.dumps({"model": self.cfg["model"], "temperature": 0, "max_tokens": 700,
-                           "messages": [{"role": "system", "content": SYSTEM}, {"role": "user", "content": prompt}]}).encode()
+                           "messages": [{"role": "system", "content": system}, {"role": "user", "content": prompt}]}).encode()
         headers = {"Content-Type": "application/json"}
         if self.cfg["api_key"]:
             headers["Authorization"] = f"Bearer {self.cfg['api_key']}"

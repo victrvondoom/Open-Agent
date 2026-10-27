@@ -1,0 +1,104 @@
+{
+  "case_id": "CDX-3003",
+  "domain": "airlines",
+  "tenant_id": "north",
+  "jurisdiction": "IN",
+  "title": "Coastal Jet CJ-638 cancelled - claimant's SMS contradicts the carrier's notification log",
+  "institution_name": "Coastal Jet",
+  "tags": [
+    "demo",
+    "notice_conflict"
+  ],
+  "as_of": "2026-10-14T16:25:00Z",
+  "feed_overrides": {
+    "airline_pss": {
+      "as_of": "2026-10-14T10:25:00Z",
+      "status": "ok"
+    },
+    "flight_ops": {
+      "as_of": "2026-10-14T10:25:00Z",
+      "status": "ok"
+    },
+    "payments": {
+      "as_of": "2026-10-14T10:25:00Z",
+      "status": "ok"
+    },
+    "airport_ops": {
+      "as_of": "2026-10-14T10:25:00Z",
+      "status": "ok"
+    }
+  },
+  "dispute": {
+    "id": "CLM-3003",
+    "type": "consumer_claim",
+    "claimant_id": "CUST-3003",
+    "claimant_name": "Vikram Nair",
+    "booking_ref": "39H593",
+    "flight_no": "CJ-638",
+    "claim_type": "cancellation_refund_and_compensation",
+    "claimed_refund": "8920.00",
+    "claimed_compensation": "0.00",
+    "currency": "INR",
+    "narrative": "My Coastal Jet flight CJ-638 DEL-BOM was cancelled. I have not received what I am owed.",
+    "filed_at": "2026-10-12T16:25:00Z",
+    "effective_at": "2026-10-12T16:25:00Z",
+    "recorded_at": "2026-10-12T16:25:00Z"
+  },
+  "documents": [
+    {
+      "id": "DOC-3003-ETKT",
+      "kind": "e_ticket",
+      "title": "E-ticket / itinerary receipt",
+      "text": "E-TICKET / ITINERARY RECEIPT\nPassenger: Vikram Nair\nBooking reference (PNR): 39H593\nFlight: CJ-638 DEL-BOM departing 16-Sep-2026 21:55 IST\nBase fare INR 6,500.00 | Fuel charge INR 1,250.00 | Taxes and fees INR 1,170.00\nTotal paid INR 8,920.00 by credit card"
+    },
+    {
+      "id": "DOC-3003-SMS",
+      "kind": "cancellation_notice",
+      "title": "Cancellation SMS",
+      "text": "Dear Vikram, Coastal Jet regrets that flight CJ-638 DEL-BOM scheduled 16-Sep-2026 21:55 IST is cancelled. Sent 16-Sep-2026 18:55 IST."
+    }
+  ],
+  "agent_run": {
+    "provenance": "recorded-fixture",
+    "status": "ready_for_human_review",
+    "evidence_summary": "Booking 39H593 on CJ-638; cancellation communicated by the carrier.",
+    "research_summary": "Cancellation by the carrier triggers refund and, depending on notice, compensation.",
+    "strategy": "File a grievance with the carrier's nodal officer; escalate to the regulator if unresolved.",
+    "appeal_draft": "To the Grievance Officer, Coastal Jet: I request INR 8,920.00 for the cancellation of CJ-638 (PNR 39H593) on 16 Sep 2026.",
+    "review_notes": [
+      "Citations to be checked against regulation text."
+    ],
+    "citations": [
+      "DGCA CAR Section 3, Series M, Part IV - compensation in addition to refund when a cancellation is notified less than 24 hours before departure",
+      "CAR Section 3 Series M Part II - refunds within 7 days for credit card purchases"
+    ],
+    "agent_trace": [
+      {
+        "agent": "planner",
+        "status": "completed"
+      },
+      {
+        "agent": "evidence",
+        "status": "completed"
+      },
+      {
+        "agent": "research",
+        "status": "completed"
+      },
+      {
+        "agent": "strategy",
+        "status": "completed"
+      },
+      {
+        "agent": "negotiation",
+        "status": "completed"
+      },
+      {
+        "agent": "review",
+        "status": "completed"
+      }
+    ],
+    "llm_call_count": 0,
+    "workflow_engine": "recorded-fixture"
+  }
+}

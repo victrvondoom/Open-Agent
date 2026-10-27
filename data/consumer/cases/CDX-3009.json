@@ -1,0 +1,104 @@
+{
+  "case_id": "CDX-3009",
+  "domain": "airlines",
+  "tenant_id": "south",
+  "jurisdiction": "IN",
+  "title": "Saffron Air SF-954 cancelled - two-week notice: refund owed, no compensation",
+  "institution_name": "Saffron Air",
+  "tags": [
+    "demo",
+    "valid_refund_only"
+  ],
+  "as_of": "2026-10-04T16:10:00Z",
+  "feed_overrides": {
+    "airline_pss": {
+      "as_of": "2026-10-04T10:10:00Z",
+      "status": "ok"
+    },
+    "flight_ops": {
+      "as_of": "2026-10-04T10:10:00Z",
+      "status": "ok"
+    },
+    "payments": {
+      "as_of": "2026-10-04T10:10:00Z",
+      "status": "ok"
+    },
+    "airport_ops": {
+      "as_of": "2026-10-04T10:10:00Z",
+      "status": "ok"
+    }
+  },
+  "dispute": {
+    "id": "CLM-3009",
+    "type": "consumer_claim",
+    "claimant_id": "CUST-3009",
+    "claimant_name": "Arjun Mehta",
+    "booking_ref": "2AG2ED",
+    "flight_no": "SF-954",
+    "claim_type": "cancellation_refund_and_compensation",
+    "claimed_refund": "9230.00",
+    "claimed_compensation": "10000.00",
+    "currency": "INR",
+    "narrative": "My Saffron Air flight SF-954 GOI-HYD was cancelled. I have not received what I am owed.",
+    "filed_at": "2026-10-02T16:10:00Z",
+    "effective_at": "2026-10-02T16:10:00Z",
+    "recorded_at": "2026-10-02T16:10:00Z"
+  },
+  "documents": [
+    {
+      "id": "DOC-3009-ETKT",
+      "kind": "e_ticket",
+      "title": "E-ticket / itinerary receipt",
+      "text": "E-TICKET / ITINERARY RECEIPT\nPassenger: Arjun Mehta\nBooking reference (PNR): 2AG2ED\nFlight: SF-954 GOI-HYD departing 01-Sep-2026 21:40 IST\nBase fare INR 7,600.00 | Fuel charge INR 1,150.00 | Taxes and fees INR 480.00\nTotal paid INR 9,230.00 by credit card"
+    },
+    {
+      "id": "DOC-3009-SMS",
+      "kind": "cancellation_notice",
+      "title": "Cancellation SMS",
+      "text": "Dear Arjun, Saffron Air regrets that flight SF-954 GOI-HYD scheduled 01-Sep-2026 21:40 IST is cancelled. Sent 12-Aug-2026 01:40 IST."
+    }
+  ],
+  "agent_run": {
+    "provenance": "recorded-fixture",
+    "status": "ready_for_human_review",
+    "evidence_summary": "Booking 2AG2ED on SF-954; cancellation communicated by the carrier.",
+    "research_summary": "Cancellation by the carrier triggers refund and, depending on notice, compensation.",
+    "strategy": "File a grievance with the carrier's nodal officer; escalate to the regulator if unresolved.",
+    "appeal_draft": "To the Grievance Officer, Saffron Air: I request INR 9,230.00 for the cancellation of SF-954 (PNR 2AG2ED) on 01 Sep 2026.",
+    "review_notes": [
+      "Citations to be checked against regulation text."
+    ],
+    "citations": [
+      "DGCA CAR Section 3, Series M, Part IV - compensation in addition to refund when a cancellation is notified less than 24 hours before departure",
+      "CAR Section 3 Series M Part II - refunds within 7 days for credit card purchases"
+    ],
+    "agent_trace": [
+      {
+        "agent": "planner",
+        "status": "completed"
+      },
+      {
+        "agent": "evidence",
+        "status": "completed"
+      },
+      {
+        "agent": "research",
+        "status": "completed"
+      },
+      {
+        "agent": "strategy",
+        "status": "completed"
+      },
+      {
+        "agent": "negotiation",
+        "status": "completed"
+      },
+      {
+        "agent": "review",
+        "status": "completed"
+      }
+    ],
+    "llm_call_count": 0,
+    "workflow_engine": "recorded-fixture"
+  }
+}

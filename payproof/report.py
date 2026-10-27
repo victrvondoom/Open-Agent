@@ -104,7 +104,7 @@ def _replace_block(text: str, start: str, end: str, body: str) -> str:
 def write_generated_docs(report: dict, root: Path = ROOT):
     deck = root / "docs" / "deck.html"
     data = json.dumps(deck_data(report), separators=(",", ":"), default=str).replace("</", "<\\/")
-    deck.write_text(_replace_block(deck.read_text(), '<script id="deck-data" type="application/json">', "</script>", data))
+    deck.write_text(_replace_block(deck.read_text(encoding="utf-8"), '<script id="deck-data" type="application/json">', "</script>", data), encoding="utf-8")
     readme = root / "README.md"
-    text = _replace_block(readme.read_text(), "<!-- BENCH:START -->", "<!-- BENCH:END -->", readme_table(report))
-    readme.write_text(_replace_block(text, "<!-- DEMO:START -->", "<!-- DEMO:END -->", readme_demo(deck_data(report)["demo"])))
+    text = _replace_block(readme.read_text(encoding="utf-8"), "<!-- BENCH:START -->", "<!-- BENCH:END -->", readme_table(report))
+    readme.write_text(_replace_block(text, "<!-- DEMO:START -->", "<!-- DEMO:END -->", readme_demo(deck_data(report)["demo"])), encoding="utf-8")

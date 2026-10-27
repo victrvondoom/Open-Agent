@@ -15,8 +15,16 @@ from pathlib import Path
 from urllib.parse import parse_qs, urlparse
 
 from .actions import USERS, ActionError, ActionService, late_credit_note
+from .consumer_intake import ConsumerIntakeError, claim_from_form
+from .consumer_sources import make_consumer_source, now_iso, unfiled_bookings
 from .integrations import integration_status, record_investigation
 from .intake import IntakeError, create_case, template_from_case
+from .money import D, fmt
+from .reclaim_actions import ConsumerActionService
+from .reclaim_bridge import DOMAINS, ReclaimBridgeClient, ReclaimBridgeError, bridge_status, text_pdf
+from .reclaim_evidence import ConsumerEvidenceIndex
+from .reclaim_policy import load_rulebook
+from .reclaim_verifier import what_if
 from .scout import ScoutError
 from .sources import make_source, load_plans
 
@@ -31,20 +39,186 @@ BENCH_LOCK = threading.Lock()
 
 
 class App:
-    def __init__(self, source=None, audit_path="default"):
+    def __init__(self, source=None, audit_path="default", consumer_source=None):
         self.source = source or make_source()
         self.plans = load_plans()
         mem = ROOT / "var" / "hmem" if audit_path == "default" else None
         self.svc = ActionService(self.source, self.plans, memory_dir=mem) if audit_path == "default" else \
             ActionService(self.source, self.plans, audit_path=audit_path)
         self.cache = {}
+        self.reclaim = ReclaimBridgeClient()
+        self.rulebook = load_rulebook()
+        cvar = ROOT / "var" / "consumer" if audit_path == "default" else None
+        self.consumer_source = consumer_source or make_consumer_source(var_dir=cvar)
+        self.consumer = ConsumerActionService(self.consumer_source, self.rulebook, self.svc.scout, memory=self.svc.memory,
+                                              bridge=self.reclaim, var_dir=cvar)
 
     def investigation(self, case_id):
         return self.svc.investigate(case_id)
 
+    # ------------------------------------------------------------------ consumer disputes (RECLAIM x PayProof)
+    def consumer_queue(self, user):
+        rows = []
+        for cid in self.consumer.visible_cases(user):
+            try:
+                r = self.consumer.investigate(cid, user, use_model=False)
+            except ActionError:
+                continue
+            r.pop("_world", None)
+            acts = self.consumer.for_case(cid)
+            a, d = r["proposed_action"], r["dispute"]
+            rows.append({"case_id": cid, "domain": r["domain"], "kind": "consumer", "title": r["title"], "claimant": d["claimant_name"],
+                         "institution": r["institution_name"], "tenant_id": r["tenant_id"],
+                         "claimed": fmt(D(d.get("claimed_refund") or 0) + D(d.get("claimed_compensation") or 0)),
+                         "owed": r["calculation"]["delta"], "proof_status": r["proof_status"], "verdict": r["verdict"],
+                         "action": a["type"], "amount": a["amount"], "escalated": bool(a.get("escalated")),
+                         "action_state": acts[-1]["state"] if acts else None,
+                         "hypothesis": r["hypotheses"][0]["status"] if r["hypotheses"] else None,
+                         "reclaim_linked": bool((r.get("reclaim") or {}).get("case_id")), "filed_at": d["filed_at"][:10],
+                         "tags": r["tags"]})
+        return rows
 
-    def queue(self, user):
-        out = []
+    def consumer_report(self, case_id, user, use_model=True):
+        r = self.consumer.investigate(case_id, user, use_model=use_model)
+        r.pop("_world", None)
+        r["actions"] = [{k: v for k, v in a.items() if k != "contracts"} for a in self.consumer.for_case(case_id)]
+        r["history"] = self.consumer.history.get(case_id, [])
+        record_investigation(case_id, {
+            "run_id": r["run_id"], "world_model": r["world_model"]["entities"] > 0,
+            "hmem": {"patterns": len(r["precedents"]["patterns"]), "precedents": len(r["precedents"]["precedents"])},
+            "scout": {"records_scanned": len(r["lineage"]), "quarantined": len(r["security"]["quarantined"])},
+            "zetaris": sorted(k for k, v in r["sources_meta"]["provenance"].items() if str(v).startswith("zetaris")) or False,
+            "nemotron": any(m["status"] == "ok" for m in r["telemetry"]["model_calls"]),
+            "reclaim": bool((r.get("reclaim") or {}).get("case_id"))})
+        return r
+
+    def _consumer_contract(self, intent, user, capability, case_id):
+        try:
+            c = self.svc.scout.decide(intent, user, params={"case_id": case_id})
+            self.svc.scout.verify(c, capability, intent=intent, user_id=user["id"])
+        except ScoutError as e:
+            self.consumer.audit.append("DENIED", user["id"], op=intent, reason=e.code, case_id=case_id)
+            raise ActionError("FORBIDDEN" if e.code == "POLICY_BLOCK" else e.code, e.message, e.status)
+
+    def link_reclaim(self, case_id, user):
+        """File the claim into RECLAIM under the tenant's principal, upload its documents to the RECLAIM vault
+        (as PDFs) and adopt the vault's extracted text as the evidence. Idempotent per case."""
+        case = self.consumer.load_visible(case_id, user)
+        self._consumer_contract("consumer.file", user, "reclaim.case.create", case_id)
+        claim = self.consumer_source.load_claim(case_id)
+        if (claim.get("reclaim") or {}).get("case_id"):
+            return claim["reclaim"]
+        tenant, d = case["tenant_id"], case["dispute"]
+        summary = (f"{d.get('narrative', '')} Booking {d.get('booking_ref')} on flight {d.get('flight_no')}. Claimed refund INR "
+                   f"{d.get('claimed_refund')} and compensation INR {d.get('claimed_compensation')}. Filed via PayProof {case_id}.")
+        rc = self.reclaim.create_case(tenant, case["title"], case["institution_name"], summary,
+                                      case["domain"] if case["domain"] in DOMAINS else "airlines", case.get("jurisdiction", "IN"))
+        uploaded = []
+        for doc in claim.get("documents", []):
+            up = self.reclaim.upload_document(tenant, rc["id"], f"{doc['id']}.pdf", text_pdf(doc.get("text", ""), doc.get("title", "")))
+            uploaded.append({"local_id": doc["id"], "document_id": up["document_id"], "extraction_method": up.get("extraction_method"),
+                             "text_chars": up.get("text_chars")})
+        vault = {x.get("document_id") or x.get("id"): x for x in self.reclaim.list_documents(tenant, rc["id"])}
+        for doc in claim.get("documents", []):  # the evidence now comes from the RECLAIM vault's extracted text
+            u = next((x for x in uploaded if x["local_id"] == doc["id"]), None)
+            row = vault.get(u["document_id"]) if u else None
+            if row and row.get("text_extract"):
+                doc.update(text=row["text_extract"], provenance="reclaim-document-vault", reclaim_document_id=u["document_id"],
+                           retrieved_at=now_iso())
+        claim["reclaim"] = {"case_id": rc["id"], "status": rc["status"], "linked_at": now_iso(), "linked_by": user["id"],
+                            "documents": uploaded}
+        self.consumer_source.save_claim(claim)
+        try:
+            ev = self.reclaim.add_event(tenant, rc["id"], "payproof_linked", f"Linked to PayProof {case_id}",
+                                        f"{len(uploaded)} document(s) uploaded for independent verification")
+            claim["reclaim"]["link_event_id"] = ev["id"]
+            self.consumer_source.save_claim(claim)
+        except ReclaimBridgeError:
+            pass  # the link stands; the timeline note is a convenience
+        self.consumer.audit.append("RECLAIM_LINKED", user["id"], case_id=case_id, tenant=tenant, reclaim_case_id=rc["id"],
+                                   documents=len(uploaded))
+        return claim["reclaim"]
+
+    def run_reclaim_agents(self, case_id, user):
+        self.consumer.load_visible(case_id, user)
+        self._consumer_contract("consumer.agents", user, "reclaim.agents.run", case_id)
+        claim = self.consumer_source.load_claim(case_id)
+        link = claim.get("reclaim") or {}
+        if not link.get("case_id"):
+            raise ActionError("NOT_LINKED", "link the case to RECLAIM before running its agents", 409)
+        run = self.reclaim.run_agents(claim["tenant_id"], link["case_id"])
+        claim.setdefault("agent_runs", []).append({k: run.get(k) for k in ("provenance", "run_at", "status", "workflow_engine", "llm_call_count")})
+        claim["agent_run"] = run
+        self.consumer_source.save_claim(claim)
+        self.consumer.audit.append("RECLAIM_AGENTS_RUN", user["id"], case_id=case_id, tenant=claim["tenant_id"],
+                                   reclaim_case_id=link["case_id"], citations=len(run["citations"]))
+        return run
+
+    def file_consumer_case(self, body, user):
+        if "consumer.file" not in user["perms"]:
+            raise ActionError("FORBIDDEN", f"role {user['role']} cannot file consumer disputes", 403)
+        texts = {k: v for k, v in body.items() if isinstance(v, str)}
+        for i, doc in enumerate(body.get("documents") or []):
+            if isinstance(doc, dict) and isinstance(doc.get("text"), str):
+                texts[f"documents[{i}].text"] = doc["text"]
+        try:  # Meterless Scout guard: embedded instructions in claimant text are refused outright
+            self.svc.scout.decide("consumer.file", user, texts=texts)
+        except ScoutError as e:
+            self.consumer.audit.append("DENIED", user["id"], op="consumer.file", reason=e.code)
+            raise ActionError(e.code, e.message, e.status)
+        bookings = [b for b in self.consumer_source.lake.get("airline_pss", []) if b.get("type") == "booking"]
+        try:
+            claim = claim_from_form(body, user, bookings)
+        except ConsumerIntakeError as e:
+            raise ActionError("INVALID_INPUT", str(e), 422)
+        case = self.consumer_source.create_case(claim)
+        self.consumer.audit.append("CONSUMER_CASE_FILED", user["id"], case_id=case["case_id"], tenant=case["tenant_id"],
+                                   booking_ref=case["dispute"]["booking_ref"])
+        out = {"case_id": case["case_id"]}
+        if body.get("link_reclaim"):
+            try:
+                out["reclaim"] = self.link_reclaim(case["case_id"], user)
+            except ReclaimBridgeError as e:
+                out["reclaim"] = {"linked": False, "error": e.code, "message": e.message}
+        r = self.consumer_report(case["case_id"], user, use_model=False)
+        out.update(proof_status=r["proof_status"], verdict=r["verdict"], action=r["proposed_action"]["type"],
+                   amount=r["proposed_action"]["amount"])
+        return out
+
+    def overview(self, user):
+        consumer = self.consumer_queue(user)
+        payroll = self.queue(user) if ("case.view" in user["perms"] or user["role"] == "sales_rep") else []
+        integ = integration_status()
+        pending = [{"id": a["id"], "domain": "payroll", "case_id": a["case_id"], "type": a["type"], "amount": a.get("amount"),
+                    "required_permission": a["required_permission"]} for a in self.svc.actions.values()
+                   if a["state"] == "AWAITING_APPROVAL" and "case.view" in user["perms"]]
+        pending += [{"id": a["id"], "domain": "consumer", "case_id": a["case_id"], "type": a["type"], "amount": a.get("amount"),
+                     "required_permission": a["required_permission"]} for a in self.consumer.actions.values()
+                    if a["state"] == "AWAITING_APPROVAL" and a.get("tenant_id") == user.get("tenant")]
+
+        def counts(rows, key):
+            out = {}
+            for r in rows:
+                out[r[key]] = out.get(r[key], 0) + 1
+            return dict(sorted(out.items()))
+        by_key = {r["key"]: r for r in integ["rows"]}
+        agents = [("RECLAIM specialist agents", "reclaim"), ("Zetaris federation", "zetaris"), ("Meterless World Model", "world_model"),
+                  ("Meterless Scout guard", "scout"), ("Meterless H-MEM precedents", "hmem"), ("NVIDIA Nemotron narrator", "nemotron")]
+        return {"totals": {"investigations": len(consumer) + len(payroll), "consumer": len(consumer), "payroll": len(payroll),
+                           "pending_approvals": len(pending)},
+                "consumer_status": counts(consumer, "proof_status"), "consumer_actions": counts(consumer, "action"),
+                "payroll_status": counts(payroll, "proof_status"), "pending_approvals": pending,
+                "agent_health": [{"agent": name, "key": k, "state": by_key[k]["state"], "detail": by_key[k]["detail"]} for name, k in agents]
+                + [{"agent": "Deterministic policy engine", "key": "policy", "state": "LIVE",
+                    "detail": f"rulebook {self.rulebook['rulebook_version']} ({len(self.rulebook['rules'])} rules) + payroll plans"},
+                   {"agent": "Independent skeptic + verifier", "key": "skeptic", "state": "LIVE",
+                    "detail": "re-query, independent recompute, citation and amount challenge on every run"}],
+                "sponsors": [{k: r.get(k) for k in ("sponsor", "short", "key", "state", "connectivity", "last_success", "detail")}
+                             for r in integ["rows"]],
+                "latest_investigation": integ["latest_investigation"], "tenant": user.get("tenant")}
+
+    def queue(self, user, domain_filter=None):
+        payroll_cases = []
         for cid in self.source.list_case_ids():
             r = self.svc.investigate(cid, use_model=False)
             if user and user["role"] == "sales_rep" and r["dispute"]["employee_id"] != user["id"]:
@@ -53,14 +227,20 @@ class App:
             emp = next(n for n in r["graph"]["nodes"] if n["id"] == r["dispute"]["employee_id"])
             verified = r["proof_status"] == "VERIFIED"
             exposure = abs(float(r["calculation"]["delta"])) if verified else float(r["dispute"]["claimed_shortfall"])
-            out.append({"case_id": cid, "title": r["title"], "claimant": emp["label"], "employee_id": r["dispute"]["employee_id"],
+            payroll_cases.append({"case_id": cid, "domain": "payroll", "kind": "payroll", "title": r["title"], "claimant": emp["label"], "employee_id": r["dispute"]["employee_id"],
                         "claimed": r["dispute"]["claimed_shortfall"], "delta": r["calculation"]["delta"] if verified else None,
                         "exposure": f"{exposure:.2f}", "proof_status": r["proof_status"], "verdict": r["verdict"],
                         "action": r["proposed_action"]["type"], "action_state": acts[-1]["state"] if acts else None,
                         "filed_at": r["dispute"]["filed_at"], "tags": r["tags"]})
-        out.sort(key=lambda x: (0 if "demo" in x["tags"] else 1 if "user-filed" in x["tags"] else 2,
+        payroll_cases.sort(key=lambda x: (0 if "demo" in x["tags"] else 1 if "user-filed" in x["tags"] else 2,
                                 -int(x["case_id"][5:]) if "user-filed" in x["tags"] else 0, -float(x["exposure"])))
-        return out
+
+        if domain_filter == "consumer":
+            return self.consumer_queue(user)
+        elif domain_filter == "all":
+            return payroll_cases + self.consumer_queue(user)
+        return payroll_cases
+
 
 
 LOGS = ROOT / "logs"
@@ -152,7 +332,131 @@ def make_handler(app: App):
                 return 200, [{"token": t, **{k: v for k, v in u.items() if k != "perms"}, "perms": sorted(u["perms"])}
                              for t, u in USERS.items()]
             if method == "GET" and path == "/api/cases":
-                return 200, app.queue(self._viewer())
+                q = parse_qs(urlparse(self.path).query)
+                dom = q.get("domain", [None])[0]
+                return 200, app.queue(self._viewer(), domain_filter=dom)
+            # ---------------------------------------------------------- RECLAIM x PayProof (consumer disputes)
+            if method == "GET" and path == "/api/reclaim/status":
+                u = self._viewer()
+                return 200, {"bridge": bridge_status(), "ping": app.reclaim.ping(u["tenant"])}
+            if method == "GET" and path == "/api/overview":
+                return 200, app.overview(self._viewer())
+            if method == "GET" and path == "/api/sponsors":
+                self._viewer()
+                rb = app.rulebook
+                return 200, {**integration_status(), "consumer_source": app.consumer_source.name,
+                             "rulebook": {"version": rb["rulebook_version"], "as_of": rb["as_of"], "rules": len(rb["rules"]),
+                                          "disclaimer": rb["_disclaimer"]}}
+            if method == "GET" and path == "/api/consumer/cases":
+                return 200, app.consumer_queue(self._viewer())
+            if method == "GET" and path == "/api/consumer/bookings":
+                self._viewer()
+                return 200, unfiled_bookings()
+            if method == "POST" and path == "/api/consumer/cases":
+                return 201, app.file_consumer_case(self._body(), self._viewer())
+            if method == "GET" and path == "/api/consumer/audit":
+                u = self._viewer()
+                if "case.view" not in u["perms"]:
+                    raise ActionError("FORBIDDEN", f"role {u['role']} cannot read the audit trail", 403)
+                mine = set(app.consumer.visible_cases(u)) | {a["id"] for a in app.consumer.actions.values() if a.get("tenant_id") == u["tenant"]}
+                ents = [e for e in app.consumer.audit.entries
+                        if e["details"].get("tenant") == u["tenant"] or e["details"].get("case_id") in mine
+                        or e["details"].get("action_id") in mine]
+                return 200, {"chain_valid": app.consumer.audit.verify_chain(), "entries": ents[-200:], "total": len(app.consumer.audit.entries)}
+            cid_re = r"/api/consumer/cases/(CDX-\d{4})"
+            if (g := m(cid_re)) and method == "GET":
+                return 200, app.consumer_report(g[1], self._viewer())
+            if (g := m(cid_re + "/evidence")) and method == "GET":
+                r = app.consumer.latest(g[1], self._viewer())
+                return 200, {k: r[k] for k in ("case_id", "run_id", "source_fingerprint", "lineage", "data_quality", "doc_facts", "documents",
+                                               "contradictions", "claims", "sources_meta", "agent", "dispute")}
+            if (g := m(cid_re + "/verify")) and method == "POST":
+                u = self._viewer()
+                r = app.consumer_report(g[1], u)
+                link = r.get("reclaim") or {}
+                if link.get("case_id"):
+                    try:
+                        app.reclaim.add_event(r["tenant_id"], link["case_id"], "payproof_verification",
+                                              f"PayProof verification: {r['proof_status']} / {r['proposed_action']['type']}",
+                                              f"run {r['run_id']}; proof {r['proof_hash'][:16]}; owed {r['calculation']['delta']}")
+                        r["reclaim_mirror"] = {"mirrored": True}
+                    except ReclaimBridgeError as e:
+                        r["reclaim_mirror"] = {"mirrored": False, "reason": e.code}
+                return 200, r
+            if (g := m(cid_re + "/explanation")) and method == "GET":
+                r = app.consumer.latest(g[1], self._viewer())
+                return 200, {"case_id": r["case_id"], "run_id": r["run_id"], "explanation": r["explanation"], "hypotheses": r["hypotheses"],
+                             "citations": r["agent"]["citations"], "validation": r["validation"], "telemetry": r["telemetry"]}
+            if (g := m(cid_re + "/trace")) and method == "GET":
+                r = app.consumer.latest(g[1], self._viewer())
+                return 200, {"case_id": r["case_id"], "run_id": r["run_id"], "trace": r["trace"], "telemetry": r["telemetry"],
+                             "world_model": r["world_model"], "verification": r["verification"],
+                             "skeptic": {k: r["skeptic"][k] for k in ("rechecks", "independent_recompute", "agreement", "unchecked")},
+                             "history": app.consumer.history.get(g[1], [])}
+            if (g := m(cid_re + "/counterfactual")) and method == "POST":
+                case = app.consumer.load_visible(g[1], self._viewer())
+                try:
+                    return 200, what_if(ConsumerEvidenceIndex(case, app.rulebook), app.rulebook, self._body())
+                except (ValueError, TypeError) as e:
+                    raise ActionError("BAD_REQUEST", str(e), 400)
+            if (g := m(cid_re + "/reclaim/link")) and method == "POST":
+                return 200, app.link_reclaim(g[1], self._viewer())
+            if (g := m(cid_re + "/reclaim/agents")) and method == "POST":
+                return 200, app.run_reclaim_agents(g[1], self._viewer())
+            if (g := m(cid_re + "/reclaim/timeline")) and method == "GET":
+                case = app.consumer.load_visible(g[1], self._viewer())
+                link = case.get("reclaim") or {}
+                if not link.get("case_id"):
+                    raise ActionError("NOT_LINKED", "case is not linked to RECLAIM", 409)
+                return 200, {"reclaim_case_id": link["case_id"], "events": app.reclaim.timeline(case["tenant_id"], link["case_id"])}
+            if (g := m(cid_re + "/simulate/source-change")) and method == "POST":
+                u = self._viewer()
+                if not ({"action.propose", "action.approve"} & u["perms"]):
+                    raise ActionError("FORBIDDEN", f"role {u['role']} cannot simulate source changes", 403)
+                kind = self._body().get("kind", "refund_credit")
+                r = app.consumer.latest(g[1], u)
+                calc, n = r["calculation"], len(app.consumer_source.overlays.get(g[1], [])) + 1
+                if kind == "refund_credit" and calc.get("payment_id") and calc.get("refund_due"):
+                    owed = fmt(max(D(calc["refund_due"]) - D(calc["refund_received"]), D("0.01")))
+                    system, rec = "payments", {"id": f"CRD-LATE-{g[1][4:]}-{n}", "type": "card_credit", "payment_id": calc["payment_id"],
+                                               "kind": "refund", "amount": owed, "posted_at": r["sources_meta"]["feeds"]["payments"].get("as_of")
+                                               or now_iso(), "descriptor": "late-posted refund", "recorded_at": now_iso()}
+                elif kind == "carrier_refund" and calc.get("booking_id"):
+                    system, rec = "airline_pss", {"id": f"ARF-LATE-{g[1][4:]}-{n}", "type": "airline_refund", "booking_id": calc["booking_id"],
+                                                  "amount": calc.get("refund_due") or "0.00", "mode": "original_instrument", "status": "PROCESSED",
+                                                  "processed_at": "2026-09-01T00:00:00Z", "note": "late carrier refund claim",
+                                                  "recorded_at": now_iso()}
+                else:
+                    raise ActionError("BAD_REQUEST", "kind must be refund_credit or carrier_refund, on a case with booking and payment", 400)
+                app.consumer_source.inject_late_event(g[1], system, rec)
+                app.consumer.audit.append("SIM_SOURCE_CHANGE", u["id"], case_id=g[1], tenant=u["tenant"], record_id=rec["id"])
+                return 201, {"injected": rec, "system": system, "hypothetical": False, "note": "Simulated late-arriving source record",
+                             "revalidation": app.consumer.revalidate(g[1], u)}
+            if (g := m(cid_re + "/revalidate")) and method == "POST":
+                return 200, app.consumer.revalidate(g[1], self._viewer())
+            if (g := m(cid_re + "/actions")) and method == "POST":
+                return 201, app.consumer.propose(g[1], self._viewer())
+            aid_re = r"/api/consumer/actions/(CACT-[0-9a-f]{10})"
+            if (g := m(aid_re)) and method == "GET":
+                return 200, app.consumer.get(g[1], self._viewer())
+            if (g := m(aid_re + "/decision")) and method == "POST":
+                u, b = self._viewer(), self._body()
+                if b.get("decision") not in ("approve", "reject"):
+                    raise ActionError("BAD_REQUEST", "decision must be approve|reject", 400)
+                return 200, app.consumer.decide(g[1], u, b["decision"] == "approve", str(b.get("note", "")))
+            if (g := m(aid_re + "/escalate")) and method == "POST":
+                u, b = self._viewer(), self._body()
+                return 200, app.consumer.escalate(g[1], u, str(b.get("note", "")))
+            if (g := m(aid_re + "/execute")) and method == "POST":
+                return 200, app.consumer.execute(g[1], self._viewer(), self.headers.get("Idempotency-Key", ""))
+            if method == "POST" and path == "/api/consumer/sim/fail-next":
+                u = self._viewer()
+                if "action.execute" not in u["perms"]:
+                    raise ActionError("FORBIDDEN", f"role {u['role']} cannot inject failures", 403)
+                app.consumer.sandbox.fail_next = True
+                app.consumer.audit.append("SIM_FAIL_NEXT", u["id"], tenant=u["tenant"])
+                return 200, {"fail_next": True}
+
             if (g := m(r"/api/cases/(CASE-\d{4})")) and method == "GET":
                 self._check_case_access(self._viewer(), g[1])
                 r = app.investigation(g[1])
@@ -223,6 +527,7 @@ def make_handler(app: App):
             if method == "POST" and path == "/api/demo/reset":
                 self._viewer()
                 app.svc.reset()
+                app.consumer.reset()
                 return 200, {"reset": True}
             if method == "GET" and path == "/api/audit":
                 self._viewer()
@@ -293,6 +598,9 @@ def make_handler(app: App):
                 status, body = self._route(method)
             except ActionError as e:
                 status, body = e.status, {"error": e.code, "message": e.message}
+            except ReclaimBridgeError as e:  # upstream failures are reported as such, never as our own 401/404
+                status = e.status_code if e.status_code in (400, 409, 422) else 502 if e.status_code < 500 else e.status_code
+                body = {"error": e.code, "message": e.message, "upstream": "reclaim"}
             except KeyError:
                 status, body = 404, {"error": "NOT_FOUND"}
             except Exception as e:  # never leak internals

@@ -198,7 +198,7 @@ def memory_eval(case_ids, gt, plans):
 
 
 def security_eval(case_ids, gt, plans):
-    corpus = json.loads((ROOT / "bench" / "security_corpus.json").read_text())
+    corpus = json.loads((ROOT / "bench" / "security_corpus.json").read_text(encoding="utf-8"))
     scout = Scout()
     from .actions import USERS
     blocked = 0

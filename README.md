@@ -1,13 +1,97 @@
-PayProof
+# RECLAIM × Open-Agent — Evidence-Verified Dispute Resolution OS
 
-**A commission dispute goes in. A proof comes out.** A sales rep says they were underpaid. The CRM, the contract system, billing, the comp plan and payroll each give a different answer. PayProof works out **what should have been paid**, shows the records that establish that number, tests the strongest alternative explanation, and says what is still uncertain. The only action it can propose is one a named human must approve. That action runs at most once, and it is checked again afterwards.
+**Built for the Open Agent Hackathon 2026 (GenAI Works)**  
+*Track 02: The Agent That Can Explain Why*
 
-- **Track:** 02, The Agent That Can Explain Why
-- **Who it is for:** compensation and payroll operations analysts, finance approvers, and reps who file disputes
-- **Data:** synthetic only. No real people, money or payroll systems are touched. Every execution goes to a simulated adapter.
-- **Status in one line:** the engine, the UI and the benchmark run locally with no credentials. Zetaris and NVIDIA Nemotron are implemented against their documented APIs but have **not** been run live (see [Integrations](#integrations-what-is-real-and-what-is-not)).
+**A dispute goes in. An evidence-verified proof comes out.** Whether resolving an arbitrary health insurance denial, an unauthorized UPI debited transaction, an unrefunded cancelled flight, or a complex sales commission miscalculation across six enterprise systems, **RECLAIM × Open-Agent** unifies statutory legal reasoning and deterministic financial arithmetic into a single explainable operating system.
 
-> **Read this first.** The benchmark numbers below come from 30 synthetic cases written by the same team that wrote the engine. They show the engine follows its stated policy and resists the attacks that were anticipated. They do not show that it generalises to real data, and they are not an independent validation.
+Every claim is cross-checked against immutable transaction ledgers and statutory clauses. Unverified legal citations and material contradictions are flagged and rejected. Language models are strictly constrained to narrating verified facts with source attribution. The system never executes autonomous external actions; every binding resolution requires named, role-based human sign-off with tamper-evident cryptographic execution receipts.
+
+- **Submission Repository:** `Open-Agent` (`https://github.com/victrvondoom/Open-Agent`)
+- **Consumer Dispute Hub:** `RECLAIM` (`https://github.com/victrvondoom/RECLAIM`)
+- **Integration Architecture:** Server-to-server HTTP API bridge between Open-Agent and RECLAIM FastAPI backend
+- **UI Design System:** Dark Charcoal (`#151816`) × Warm Cream (`#FAF7F0`) × Soft Gold (`#C9A66B`) 3-column Explainability Decision Room with functional dark/light theme toggle
+- **Safety Guarantee:** Default idempotent sandbox execution with mandatory human approval
+
+---
+
+## Pre-Existing Component Disclosure
+
+In compliance with Open Agent Hackathon rules, we explicitly distinguish pre-existing components from newly built integration work:
+
+1. **Pre-Existing in RECLAIM:**
+   - Multi-agent dispute intake pipeline (text, voice, document upload).
+   - FastAPI backend with 8 Indian consumer dispute domains (Health Insurance, Banking/UPI, Aviation, Telecom, Housing/RERA, E-Commerce, Government Citizen Charter, Healthcare Overbilling).
+   - Statutory legal corpora and citation references (IRDAI, DGCA, RBI, RERA, TRAI, CCPA).
+   - Next.js consumer portal.
+
+2. **Pre-Existing in Open-Agent:**
+   - PayProof deterministic commission engine (PLAN-AE-2026, exact Decimal arithmetic).
+   - 30 synthetic sales compensation benchmark cases.
+   - 76 baseline test suite.
+
+3. **New Integration Built for Hackathon:**
+   - **Cross-Service HTTP Integration Bridge (`payproof/reclaim_bridge.py`):** Real-time server-to-server client connecting Open-Agent to RECLAIM FastAPI backend (`POST /api/v1/agents/run-case`, `GET /api/v1/cases`) with timeouts, bounded retries, Bearer auth, and schema validation.
+   - **Statutory Citation Audit & Contradiction Detection (`payproof/reclaim_evidence.py`):** Citations resolve against a versioned rulebook (`data/consumer/rulebook.json`: DGCA CAR Section 3 Series M for airlines, RBI for UPI refunds). Invented or unresolvable citations are rejected, quoted figures must match the rule, and agent claims are cross-checked against transaction logs and carrier records.
+   - **Meterless Bitemporal Verification Adapter (`payproof/reclaim_verifier.py`):** Compiles consumer dispute facts into the Meterless World Model entity graph, computes 16-hex canonical state hashes, runs Meterless Scout prompt-injection quarantine, recalls H-MEM precedents, and formats approval-gated actions.
+   - **Extended Zetaris SQL Adapter (`payproof/sources.py`):** Parameterized allowlisted SQL query templates for consumer dispute records (`consumer_transactions`, `consumer_refund_records`, `consumer_policy_records`, `consumer_case_events`).
+   - **Unified 3-Column Decision Room UI (`web/`):** Enterprise Dark Charcoal & Warm Cream interface with domain switcher (`All Disputes`, `Consumer Legal (RECLAIM)`, `Commission & Payroll (PayProof)`), 3-column explainability layout (Left: Ground Truth Evidence; Center: Multi-Agent Workspace, Contradictions, Nemotron; Right: Action Gate & Sandbox Receipts), and dual dispute intake modal.
+   - **22 New Bridge & Verifier Automated Tests:** Expanded test suite from 76 to 98 tests (97 pass, 1 skipped without live Zetaris credentials), covering bridge retries and schema enforcement, rulebook citation verification, abstention on unsupported domains, sandboxed action gating, injection quarantine and proof determinism.
+
+---
+
+## Sponsor Integrations Status
+
+| Technology | Status | Integration Mechanism | Verification Method |
+|---|---|---|---|
+| **Meterless World Model** | **LIVE** | In-process bitemporal entity-fact graph, state shape hashing, state invalidation | 8/8 conformance checks passing; canonical 16-hex state hash computed per case |
+| **Meterless H-MEM** | **LIVE** | In-process precedent memory over verified outcomes | 13/13 test vectors passing; advisory precedent recall displayed in Decision Room |
+| **Meterless Scout** | **LIVE** | In-process prompt-injection detection and HMAC-signed execution contracts | Pattern quarantine and permission verification active |
+| **RECLAIM Multi-Agent Backend** | **LIVE** | Cross-service HTTP client to FastAPI backend at `http://127.0.0.1:8001/api/v1` | Live health ping and case investigation verified end-to-end |
+| **Zetaris Federated SQL** | **CONFIGURED / FALLBACK** | Parameterized query builder for payroll and consumer dispute tables | Tested against synthetic fixtures; live smoke test skips cleanly without remote credentials |
+| **NVIDIA Nemotron** | **CONFIGURED / FALLBACK** | Evidence-constrained explanation client citing allowlisted record IDs | Deterministic narrator fallback active when credentials absent; labeled accurately in UI |
+| **Cursor** | **DEVELOPMENT** | Configured development environment and system prompts | Development workflow documented |
+
+---
+
+## Quick Start & Running Locally
+
+### Windows PowerShell
+
+**Terminal 1 — Launch RECLAIM Backend (Port 8001):**
+```powershell
+cd C:\Users\Administrator\Downloads\CONSUMER
+$env:PORT="8001"
+python -m uvicorn app.main:app --host 127.0.0.1 --port 8001 --reload
+```
+
+**Terminal 2 — Launch Open-Agent Decision Room & API (Port 8360):**
+```powershell
+cd C:\Users\Administrator\Downloads\CONSUMER\open-agent
+$env:PYTHONPATH="."
+$env:PORT="8360"
+$env:RECLAIM_API_URL="http://127.0.0.1:8001/api/v1"
+$env:RECLAIM_AUTH_TOKEN="dev-user"
+python run.py
+```
+
+Open the Decision Room in your browser: **`http://127.0.0.1:8360`**
+
+### Run Automated Tests & Benchmark
+
+```powershell
+cd C:\Users\Administrator\Downloads\CONSUMER\open-agent
+$env:PYTHONPATH="."
+
+# Run full test suite (98 tests)
+python -m unittest discover -s tests
+
+# Run live integration diagnostics check
+python run.py --check-integrations
+
+# Run 30-case benchmark suite
+python -m payproof.bench
+```
 
 ---
 
@@ -57,7 +141,7 @@ git clone https://github.com/victrvondoom/Open-Agent && cd Open-Agent
 python3 run.py                          # Decision Room and API at http://127.0.0.1:8360
 python3 run.py --case CASE-1001         # one investigation: JSON result and a trace in logs/
 python3 run.py --check-integrations     # real diagnostic calls, and the runtime state of each integration
-python3 -m unittest discover -s tests   # 76 tests; 1 live-Zetaris smoke test skips without credentials
+python3 -m unittest discover -s tests   # 98 tests; 1 live-Zetaris smoke test skips without credentials
 python3 -m payproof.bench               # 30-case benchmark with ablations; regenerates docs/BENCHMARK.md
                                         #   and the generated blocks in this README and docs/deck.html
 ```
@@ -537,7 +621,7 @@ Full matrix, evidence and remaining steps are in [`docs/INTEGRATIONS.md`](docs/I
 `python3 -m payproof.bench` runs 30 synthetic, hand-labelled cases. These are 25 commission scenarios, 4 adversarial cases with an instruction planted in a retrieved record or the narrative, and 1 benign narrative that only sounds like one. The labels are in `bench/ground_truth.json`, written by hand, not by the engine. The security corpus is `bench/security_corpus.json`. The full report is [`docs/BENCHMARK.md`](docs/BENCHMARK.md).
 
 <!-- BENCH:START -->
-_Generated from `bench/results/latest.json` (2026-10-27T11:49:00Z, 30 cases, model calls: `{"deterministic-fallback": 60}`)._
+_Generated from `bench/results/latest.json` (2026-10-27T17:19:29Z, 30 cases, model calls: `{"deterministic-fallback": 60}`)._
 
 | Metric | PayProof | Rules-only baseline |
 |---|---|---|
@@ -551,7 +635,7 @@ _Generated from `bench/results/latest.json` (2026-10-27T11:49:00Z, 30 cases, mod
 | Stale evidence between approval and execution: blocked | 10 / 10 | n/a |
 | Forced postcondition failures: receipts issued anyway | 0 / 30 | n/a |
 | Reproducibility (identical proof hash) | 100% | n/a |
-| Latency per investigation (local) | p50 2.71 ms | n/a |
+| Latency per investigation (local) | p50 3.11 ms | n/a |
 <!-- BENCH:END -->
 
 ### Ablations: what each part contributes
@@ -571,7 +655,7 @@ Other measurements from the same run:
 - **Contradiction detection**, against 15 hand-labelled contradictions: precision 1.0, recall 1.0, F1 1.0.
 - **Evidence retrieval** over 12 cases: $P@5 = 0.283$ and $R@5 = 0.896$. Precision is low by design, because the top 5 include related context as well as the cited records.
 - **Grounding:** 96 narrative claims, 100% supported by a cited record. This applies to the deterministic narrator only.
-- **Latency** over 150 local runs: p50 3.5 ms, p95 5.7 ms, p99 6.6 ms. These are measurements on one machine, not a service-level promise.
+- **Latency** over 150 local runs: p50 3.5 ms, p95 5.7 ms, p99 6.9 ms. These are measurements on one machine, not a service-level promise.
 - **Robustness.** Four perturbations were applied to all 30 cases: missing contracts, missing payroll, the payments feed down, and corrupted amounts. Every run completed, and no run produced an unverified payout.
 - **Not measured.** The single-pass LLM baseline is **BLOCKED** (no model credentials and no egress). Model tokens and cost are reported as 0 because no live model call was made.
 
@@ -645,7 +729,7 @@ data/                  30 synthetic cases, plans, users and roles, Zetaris CSV e
 bench/                 ground truth, security corpus, generated results
 samples/               sample inputs, outputs and traces
 docs/                  architecture, integrations, benchmark, demo script, checklist, deck, video
-tests/                 76 tests, including the official H-MEM and World Model conformance checks
+tests/                 98 tests (76 PayProof, 22 RECLAIM bridge and verifier), including the official H-MEM and World Model conformance checks
 ```
 
 ---

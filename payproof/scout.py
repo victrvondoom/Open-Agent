@@ -27,6 +27,10 @@ INTENTS = {  # intent registry: required permission and the exact capability set
     "action.propose": {"permission": "action.propose", "capabilities": ["case.investigate", "action.create"], "risk": "low"},
     "action.approve": {"permission": "action.approve", "capabilities": ["action.decide"], "risk": "medium"},
     "action.execute": {"permission": "action.execute", "capabilities": ["payroll.sim.write", "ticket.sim.write"], "risk": "high"},
+    # consumer disputes (RECLAIM x PayProof)
+    "consumer.file": {"permission": "consumer.file", "capabilities": ["intake.create", "world.ingest", "reclaim.case.create"], "risk": "low"},
+    "consumer.agents": {"permission": "action.propose", "capabilities": ["reclaim.agents.run", "reclaim.documents.upload"], "risk": "low"},
+    "consumer.execute": {"permission": "action.execute", "capabilities": ["grievance.sandbox.submit"], "risk": "high"},
 }
 TTL_S = 300
 

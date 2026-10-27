@@ -1,5 +1,5 @@
 {
-  "_note": "Synthetic demo users selected via the X-Demo-User header. Demo-only authentication; edit to add roles/users.",
+  "_note": "Synthetic demo users selected via the X-Demo-User header. Demo-only authentication. tenant scopes consumer cases; claimant_id links a consumer to their own claims.",
   "users": {
     "ana": {
       "id": "ANALYST-1",
@@ -9,8 +9,10 @@
         "action.propose",
         "benchmark.run",
         "case.file",
-        "case.view"
-      ]
+        "case.view",
+        "consumer.file"
+      ],
+      "tenant": "north"
     },
     "fin": {
       "id": "FIN-APPROVER-1",
@@ -19,7 +21,8 @@
       "perms": [
         "action.approve",
         "case.view"
-      ]
+      ],
+      "tenant": "north"
     },
     "ctl": {
       "id": "CONTROLLER-1",
@@ -30,7 +33,8 @@
         "action.execute",
         "benchmark.run",
         "case.view"
-      ]
+      ],
+      "tenant": "north"
     },
     "ops": {
       "id": "PAYROLL-OPS-1",
@@ -39,7 +43,8 @@
       "perms": [
         "action.execute",
         "case.view"
-      ]
+      ],
+      "tenant": "north"
     },
     "rep": {
       "id": "E-1042",
@@ -47,6 +52,30 @@
       "role": "sales_rep",
       "perms": [
         "case.view_own"
+      ],
+      "tenant": "north"
+    },
+    "ana2": {
+      "id": "ANALYST-2",
+      "name": "Bilal Rahman",
+      "role": "analyst",
+      "tenant": "south",
+      "perms": [
+        "action.propose",
+        "case.file",
+        "case.view",
+        "consumer.file"
+      ]
+    },
+    "cus": {
+      "id": "CUST-3001",
+      "name": "Consumer (claimant)",
+      "role": "consumer",
+      "tenant": "north",
+      "claimant_id": "CUST-3001",
+      "perms": [
+        "consumer.file",
+        "consumer.view_own"
       ]
     }
   }
