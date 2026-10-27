@@ -16,6 +16,7 @@ from pathlib import Path
 
 from .money import D, fmt
 from .sources import sha
+from . import world_model as wm
 from .workflow import investigate, source_fingerprint
 
 ROOT = Path(__file__).resolve().parent.parent
@@ -115,6 +116,7 @@ class ActionService:
         self.audit = AuditLog(audit_path)
         self.adapter = SimulatedAdapter()
         self.actions: dict[str, dict] = {}
+        self.worlds: dict[str, wm.WorldModel] = {}  # action id -> Meterless World Model snapshot at proposal
         self.lock = threading.RLock()
         self.clock = clock or (lambda: datetime.now(timezone.utc))
 
@@ -140,7 +142,20 @@ class ActionService:
         a["audit_seqs"].append(e["seq"])
 
     def _stale(self, a):
-        return source_fingerprint(self.source.load_case(a["case_id"])) != a["preconditions"]["source_fingerprint"]
+        """Two independent staleness signals; either one expires the action (fail closed).
+        1. Meterless World Model: re-ingest current sources into the world captured at proposal;
+           the engine's idempotency contract says an unchanged batch reports changed=False.
+        2. sha256 fingerprint of the source snapshot."""
+        case = self.source.load_case(a["case_id"])
+        report = wm.ingest_case(self.worlds[a["id"]], case)
+        fp_changed = source_fingerprint(case) != a["preconditions"]["source_fingerprint"]
+        a["staleness_checks"].append({"world_model_changed": report["changed"], "world_model_new_or_changed": report["processed"],
+                                      "fingerprint_changed": fp_changed, "agree": report["changed"] == fp_changed,
+                                      "at": self.clock().isoformat(timespec="seconds")})
+        if report["changed"] or fp_changed:
+            return (f"Meterless World Model ingest reported changed={report['changed']} "
+                    f"({report['processed']} new/changed source records); fingerprint changed={fp_changed}")
+        return None
 
     def get(self, action_id):
         a = self.actions.get(action_id)
@@ -162,9 +177,13 @@ class ActionService:
                     return a  # idempotent proposal
             aid = "ACT-" + sha([pa["idempotency_key"], len(self.actions)])[:10]
             a = {**pa, "id": aid, "state": "PROPOSED", "proposed_by": u["id"], "history": [], "audit_seqs": [],
-                 "proof_hash": inv["proof_hash"], "approved_by": None, "approved_at": None, "receipt": None,
+                 "proof_hash": inv["proof_hash"], "staleness_checks": [], "approved_by": None, "approved_at": None, "receipt": None,
                  "created_at": self.clock().isoformat(timespec="seconds")}
             self.actions[aid] = a
+            world = wm.WorldModel(namespace=f"{case_id}/{aid}")
+            snap = wm.ingest_case(world, self.source.load_case(case_id))
+            self.worlds[aid] = world
+            a["preconditions"]["world_model_state_hash"] = snap["state_hash"]
             a["audit_seqs"].append(self.audit.append("ACTION_PROPOSED", u["id"], action_id=aid, case_id=case_id,
                                                      type=a["type"], amount=a.get("amount"), run_id=inv["run_id"])["seq"])
             # System validation: proof must be sound and the validator must have passed
@@ -196,8 +215,8 @@ class ActionService:
                 raise ActionError("FORBIDDEN", "; ".join(reasons), 403)
             if a["state"] != "AWAITING_APPROVAL":
                 raise ActionError("INVALID_STATE", f"action is {a['state']}", 409)
-            if self._stale(a):
-                self._move(a, "EXPIRED", "SYSTEM", reason="STALE_EVIDENCE: sources changed since proposal; re-investigate")
+            if stale := self._stale(a):
+                self._move(a, "EXPIRED", "SYSTEM", reason=f"STALE_EVIDENCE before approval: {stale}")
                 raise ActionError("STALE_EVIDENCE", "source records changed since the proposal; action expired", 409)
             if approve:
                 a["approved_by"], a["approved_at"] = u["id"], self.clock().isoformat(timespec="seconds")
@@ -227,8 +246,8 @@ class ActionService:
                 self._move(a, "EXPIRED", "SYSTEM", reason="approval expired")
                 raise ActionError("EXPIRED", "approval expired", 409)
             # Re-check preconditions against current sources
-            if self._stale(a):
-                self._move(a, "EXPIRED", "SYSTEM", reason="STALE_EVIDENCE at execution")
+            if stale := self._stale(a):
+                self._move(a, "EXPIRED", "SYSTEM", reason=f"STALE_EVIDENCE at execution: {stale}")
                 raise ActionError("STALE_EVIDENCE", "source records changed after approval; action expired", 409)
             current = self.investigate(a["case_id"])
             if current["calculation"]["paid"] != a["preconditions"]["expected_paid_before"]:
@@ -270,6 +289,7 @@ class ActionService:
     def reset(self):
         with self.lock:
             self.actions.clear()
+            self.worlds.clear()
             self.adapter = SimulatedAdapter()
             self.source.reset()
             self.audit.append("DEMO_RESET", "SYSTEM")

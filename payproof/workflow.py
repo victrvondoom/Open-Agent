@@ -13,7 +13,7 @@ from . import ENGINE_VERSION
 from .counterfactual import replay
 from .evidence import EvidenceIndex, build_graph, resolve_identity
 from .llm import ModelClient
-from .meterless import rank_scenarios
+from . import world_model as wm
 from .money import D, cents, fmt
 from .policy import Scenario, compute
 from .sources import sha
@@ -389,11 +389,19 @@ def investigate(case: dict, plans: dict, ledger: list | None = None, model: Mode
     cutoff = _step(calc, "cutoff")["value"]
     tl = timeline(index, cutoff)
     cfs = replay(index, plans, identity, calc)
-    cfs, meterless_meta = rank_scenarios(case["case_id"], cfs)
+
+    # Meterless World Model: canonical, provenance-stamped, bitemporal evidence state.
+    world = wm.WorldModel(namespace=case["case_id"])
+    wm_ingest = wm.ingest_case(world, case, run_id)
+    wm_check = world_model_cross_check(world, wm_ingest["ids"], index, calc, cutoff)
 
     hypo = investigator(index, calc, identity)
     sk = skeptic(index, calc, identity, cfs, tl)
     ver = policy_verifier(index, plans, identity, calc, ledger or [])
+    if wm_check:
+        ver["invariants"].append(wm_check)
+        if not wm_check["passed"]:
+            ver["proof_status"] = "REJECTED"
     status = ver["proof_status"]
     verdict = verdict_for(status, calc, d["claimed_shortfall"], ledger or [])
     action = resolution_planner(index, plans, status, verdict, calc, fingerprint, run_id, sk["findings"])
@@ -401,7 +409,8 @@ def investigate(case: dict, plans: dict, ledger: list | None = None, model: Mode
 
     # Model narration (bounded, optional, validated)
     facts = {"due": calc["due"], "paid": calc["paid"], "delta": calc["delta"], "status": status, "verdict": verdict,
-             "steps": [{k: s[k] for k in ("label", "value", "rule", "cites")} for s in calc["steps"]]}
+             "steps": [{k: s[k] for k in ("label", "value", "rule", "cites")} for s in calc["steps"]],
+             "world_model_context": wm.context_for(world, wm_ingest["ids"][d["opportunity_id"]])}
     narrative, m1 = model.narrate("explain_resolution", facts, hypo["claims"])
     strongest = next((f for f in sk["findings"] if f["id"] == sk["strongest"]), None)
     sk_claims = [{"text": f"{strongest['title']}. {strongest['detail']}", "cites": strongest["cites"]}] if strongest else []
@@ -424,7 +433,8 @@ def investigate(case: dict, plans: dict, ledger: list | None = None, model: Mode
     core = {"case_id": case["case_id"], "run_id": run_id, "engine_version": ENGINE_VERSION,
             "plan_version": calc.get("plan_version"), "source_fingerprint": fingerprint,
             "proof_status": status, "verdict": verdict, "calculation": calc, "counterfactuals": cfs,
-            "bundle": bundle, "proposed_action": action, "identity": identity}
+            "bundle": bundle, "proposed_action": action, "identity": identity,
+            "world_model_state_hash": wm_ingest["state_hash"]}
     proof_hash = sha(core)
     return {
         **core, "proof_hash": proof_hash, "title": case["title"], "tags": case.get("tags", []), "dispute": d,
@@ -433,8 +443,34 @@ def investigate(case: dict, plans: dict, ledger: list | None = None, model: Mode
         "sources_meta": {"provenance": case.get("provenance", {k: "local-fixtures" for k in case["sources"]}),
                          "feeds": case["feeds"], "late_events": case.get("late_events", [])},
         "telemetry": {"latency_ms": round((time.monotonic() - t0) * 1000, 2), "model_calls": model.calls,
-                      "model_identity": model.identity, "meterless": meterless_meta},
+                      "model_identity": model.identity},
+        "world_model": {"engine": wm.ENGINE, "namespace": world.namespace, "state_hash": wm_ingest["state_hash"],
+                        "entities": wm_ingest["entities"], "relationships": wm_ingest["relationships"],
+                        "events": len(world.events), "audit_entries": len(world.audit()),
+                        "ingest": {k: wm_ingest[k] for k in ("runId", "processed", "skippedUnchanged", "eventsAppended", "changed")},
+                        "cross_check": wm_check, "context_items": len(facts["world_model_context"]),
+                        "audit_tail": world.audit()[-5:]},
+        "_world": world,
     }
+
+
+def world_model_cross_check(world, ids, index, calc, cutoff):
+    """Independent recomputation through the Meterless World Model's point-in-time graph view:
+    the payments / credit notes / refunds whose edges are valid at the cutoff (validFrom = value or
+    issue date) must be exactly the ones the policy engine counted."""
+    coll = _step(calc, "collected")
+    if not coll:
+        return None
+    engine = {c for c in coll["cites"] if (index.get(c) or {}).get("type") in ("payment", "credit_note", "refund")}
+    at = cutoff + "T23:59:59.999Z"
+    via = {"payment": "pays", "credit_note": "credits-invoice", "refund": "refunds"}
+    world_set = set()
+    for inv in (c for c in coll["cites"] if (index.get(c) or {}).get("type") == "invoice"):
+        for rel in via.values():
+            world_set |= {e["id"].split(":")[-1] for e in world.neighbors_of(ids[inv], via=rel, at=at)}
+    ok = engine == world_set
+    return {"invariant": "Meterless World Model as-of-cutoff view matches the cash events the engine counted",
+            "passed": ok, "detail": f"world={sorted(world_set)} engine={sorted(engine)}"}
 
 
 def build_bundle(index, plans, calc, identity, ver, verdict, sk, status, d):

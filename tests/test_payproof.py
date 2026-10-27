@@ -169,6 +169,10 @@ class ActionTests(unittest.TestCase):
         self.assertEqual(cm.exception.code, "STALE_EVIDENCE")
         self.assertEqual(a["state"], "EXPIRED")
         self.assertEqual(self.svc.adapter.ledger, [])
+        # both independent staleness signals fired and agreed (Meterless World Model + fingerprint)
+        last = a["staleness_checks"][-1]
+        self.assertTrue(last["world_model_changed"] and last["fingerprint_changed"] and last["agree"])
+        self.assertIn("World Model", a["history"][-1]["reason"])
         # re-investigation reflects the new credit note
         self.assertEqual(self.svc.investigate("CASE-1001")["calculation"]["due"], "4200.00")
 
