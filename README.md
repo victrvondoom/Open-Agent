@@ -1,131 +1,155 @@
 # PeoplePay-360 · PayProof
 
-**Proof-carrying commission dispute resolution.** A sales rep says they were underpaid. The CRM, contract system, billing, comp plan and payroll all disagree. PayProof works out **what should have been paid**. It shows which evidence establishes that figure and which alternative explanations it tested. It also says what is still uncertain and **what exact action is safe to take next**. Any action needs a backend-enforced approval, and the system verifies the result after execution.
+**Proof-carrying commission dispute resolution.** A sales rep says they were underpaid, and the CRM, contract system, billing, comp plan and payroll all disagree. PayProof works out **what should have been paid**. It shows which records establish that figure and which alternative explanations were tested and why they failed. It says what is still uncertain, and **what exact action is safe to take next**. That action needs a backend-enforced approval, executes at most once, and is verified after execution.
 
-> Built for the GenAI.Works Open Agent Hackathon 2026 (Track 02 fit: *The Agent That Can Explain Why*).
-> All people, companies and amounts are **synthetic**. No real money moves. Every execution goes to a **simulated** adapter.
+- **Track:** 02 — The Agent That Can Explain Why
+- **Users:** sales-compensation and payroll operations analysts, finance approvers, and reps who file disputes
+- **Data:** synthetic only. No real people, money or payroll systems. Every execution goes to a **simulated** adapter.
 
-## Quick start (no credentials, no dependencies)
+> **Limitation, stated up front.** The benchmark's 25/25 comes from synthetic cases written alongside the engine. It shows the engine implements its stated policy; it is not evidence of generalisation or independent validation. Sponsor status is reported as it actually is (see [Sponsor technology](#sponsor-technology)).
+
+## Run it (clean clone, no dependencies, no credentials)
 
 Requires Python ≥ 3.10. There is nothing to install.
 
 ```bash
 git clone https://github.com/victrvondoom/Open-Agent && cd Open-Agent
-python3 -m payproof.server          # → http://127.0.0.1:8360
+python3 run.py                          # Decision Room + API → http://127.0.0.1:8360
+python3 run.py --case CASE-1001         # one investigation → JSON result + logs/RUN-…-trace.jsonl
+python3 run.py --check-integrations     # one real call to each configured sponsor service
+python3 -m unittest discover -s tests   # 44 tests (1 live-Zetaris smoke test skips without credentials)
+python3 -m payproof.bench               # 25-case benchmark → bench/results/latest.json + docs/BENCHMARK.md
 ```
 
-```bash
-python3 -m unittest discover -s tests   # 23 tests: money, ground truth, authz, idempotency, stale evidence, model path
-python3 -m payproof.bench --smoke       # 5-case smoke benchmark (≈0.2 s)
-python3 -m payproof.bench               # full 25-case benchmark → bench/results/latest.json + docs/BENCHMARK.md
-python3 scripts/build_fixtures.py       # regenerate synthetic source snapshots (optional)
-```
+Docker alternative: `docker build -t payproof . && docker run --rm -p 8360:8360 --env-file .env payproof`.
 
-Docker alternative: `docker build -t payproof . && docker run -p 8360:8360 payproof`.
+Configuration lives in `.env.example`, with placeholders only. `SAMPLE_MODE=true` forces local fixtures and the deterministic narrator, so no network is used.
 
-Optional sponsor integrations are configured through environment variables (see `.env.example`). With none set, every integration reports **fallback** in the UI header. The app never claims a live integration that isn't running.
+**Sample inputs and outputs:** [`samples/`](samples/) has three cases (the demo, the missing-evidence refusal, and a material contradiction), each with its full JSON output and agent traces. Regenerate them with `python3 run.py --samples`.
 
-## The demo case (CASE-1001)
+## What it does — the demo case (CASE-1001)
 
-Maya Chen disputes a **$3,000** shortfall on Northwind Logistics. The CRM shows **$60,000** at 10%, so she expects $6,000. The engine finds:
+Maya Chen disputes a **$3,000** shortfall on a deal the CRM shows at **$60,000** (10% → she expects $6,000).
 
-| Fact | Source | Effect |
+| Step | What PayProof finds | Evidence |
 |---|---|---|
-| Amendment AMD-3301-1 cuts the contract to $50,000 (signed before cutoff) | CLM | eligible value $50,000 |
-| Invoice INV-8801 is partially paid: $36,000 + $9,000 | Billing | PAY-44987 was **recorded after the cutoff** but has a value date before it |
-| Credit note CN-0077 of $2,000 | Billing | net collected **$43,000** |
-| Plan v1 rate 10% (P-4.1) | Comp | due **$4,300.00** |
-| Payroll: $3,600 commission, then CN-0077 clawed back **twice** (PL-…-041, PL-…-042) | Payroll | paid **$3,200.00** |
+| Claimant expectation | $60,000 × 100% × 10% = **$6,000** | OPP-5521, SPL-5521-1 |
+| Eligible value (P-3.1) | amendment cuts the contract to $50,000 → **−$1,000** | CTR-3301, AMD-3301-1 |
+| Collection basis (P-3.2) | $36,000 + $9,000 paid − $2,000 credit note = $43,000 → **−$700** | INV-8801, PAY-44120, PAY-44987, CN-0077 |
+| **Verified due** | **$4,300.00** | deterministic Decimal, ROUND_HALF_UP once |
+| Paid | $3,600 − $200 − $200: the credit-note clawback was posted **twice** | PL-…-118, PL-…-041, PL-…-042 |
+| **Verified underpayment** | **$1,100.00**, so the claim is *partially supported* | |
 
-**Result:** VERIFIED. The claim is *partially supported*: the verified underpayment is **$1,100.00**, not $3,000. That figure is $900 of commission on the late-recorded payment plus $200 from reversing the duplicate clawback.
-**Skeptic's strongest counterargument:** "PAY-44987 was recorded on 2026-07-03, after the cutoff. If it is excluded, she is owed only $200." The verifier tests this through counterfactual replay, then rules it out under clause **P-4.2** (value date governs).
-**Action:** `PREPARE_PAYROLL_ADJUSTMENT $1,100.00`. It needs `finance_approver`. Segregation of duties applies: the proposer can't approve, and neither can the rep. The rep's approval attempt returns **403**. After approval, payroll-ops executes once on the simulated ledger. The postcondition then re-investigates the case and confirms paid = $4,300 and variance = $0. A hash-chained audit receipt is issued.
+- **Skeptic's strongest counterargument:** PAY-44987 was *recorded* after the cutoff, so excluding it would leave only $200 owed. Counterfactual replay tests this, and it is ruled out under P-4.2 (value date governs).
+- **Action:** `PREPARE_PAYROLL_ADJUSTMENT $1,100.00`, which needs `finance_approver`. The rep's approval attempt gets a **403**. Once approved, payroll ops executes once on the simulated ledger. The case is then re-investigated (paid = $4,300, variance = $0) and a hash-chained receipt is issued.
+- **Negative case (CASE-1015):** there is no contract in CLM, so the status is **NEEDS_EVIDENCE** and the only action available is `REQUEST_EVIDENCE`. No money moves.
 
-**Negative case (CASE-1015):** the rep asks for $4,500 now, but there is no contract in CLM. Status is **NEEDS_EVIDENCE**. The only action offered is `REQUEST_EVIDENCE`, which moves no money. A labelled *hypothetical* counterfactual shows what a contract would establish, without treating it as fact.
+## Architecture
 
-Demo walkthrough: [`docs/DEMO_SCRIPT.md`](docs/DEMO_SCRIPT.md).
+```mermaid
+flowchart LR
+  subgraph Sources["Source systems (synthetic)"]
+    H[HRIS] & C[CRM] & K[Contracts] & B[Billing] & P[Comp plan] & Y[Payroll]
+  end
+  Sources -->|Zetaris REST SQL<br/>or local fixtures| A[Source adapter<br/>per-system provenance]
+  A --> WM[(Meterless World Model<br/>provenance · bitemporal edges<br/>idempotent ingest · audit)]
+  A --> EI[Evidence index<br/>identity resolution]
+  EI --> PE[Deterministic policy engine<br/>Decimal · cited steps]
+  PE --> CF[Counterfactual replay<br/>hypothetical overlays]
+  PE --> INV[Investigator] --> SK[Skeptic] --> PV[Policy verifier]
+  WM -->|as-of-cutoff cross-check| PV
+  WM -->|context builder| LLM[Nemotron phrasing<br/>optional]
+  LLM --> FV
+  PV --> RP[Resolution planner] --> FV[Final validator<br/>cites + amounts checked]
+  FV --> AG{Approval gate<br/>authz · limits · SoD}
+  WM -->|re-ingest diff = stale?| AG
+  AG --> EX[Simulated adapter<br/>idempotent] --> PC[Postcondition<br/>re-investigation] --> R[Hash-chained receipt]
+```
 
-## Five core mechanisms
+- **The model never touches money, status or permissions.** Every sentence Nemotron returns must cite record ids that exist in the case. Every dollar amount it uses must be one the engine computed. Anything else is dropped and counted (`tests/test_model_path.py`).
+- **Fixed pipeline.** Five roles run in a fixed order with no loops and at most 2 model calls per run. Narrations are cached by fact-hash, and the queue and action paths make no model calls.
+- More detail in [`docs/ARCHITECTURE.md`](docs/ARCHITECTURE.md).
 
-1. **Temporal identity and evidence graph** (`payproof/evidence.py`). Each fact keeps its source system, record id, effective time, recorded time and transformation history. HRIS↔CRM identity resolves only on an email or a recorded alias. Name-only matches are never merged: they are shown as candidates and the case becomes NEEDS_EVIDENCE.
-2. **Proof-carrying decisions** (`payproof/workflow.py: build_bundle`). Each material claim carries supporting and contradicting records, policy clauses, plan version, calculation steps, assumptions and open questions. Its status is one of `VERIFIED | DISPUTED | NEEDS_EVIDENCE | REJECTED`. The run id, proof hash and source fingerprint make the result reproducible.
-3. **Counterfactual payout replay** (`payproof/counterfactual.py`). Scenarios are derived from the facts in each case: recorded-date timing, full payment, a credit note on the other side of the cutoff, a voided or late amendment, split misattribution, duplicate removal and exception approval. Each one is replayed through the same deterministic engine. All are labelled `hypothetical` and never written back.
-4. **Adversarial workflow with a deterministic verifier.** The workflow runs Investigator → Skeptic → Policy verifier → Resolution planner → Final validator. It is a fixed pipeline with at most 2 model calls. The verifier recomputes every number from the cited records, checks invariants, and decides whether a conflict is *material* by recomputing under each alternative. CASE-1010 is a material conflict, so it is DISPUTED. CASE-1011 is immaterial, so it is VERIFIED.
-5. **Approval-gated actions** (`payproof/actions.py`). The state machine is `PROPOSED → VALIDATED → AWAITING_APPROVAL → APPROVED → EXECUTED → VERIFIED`, plus `REJECTED / FAILED / EXPIRED`. Authorization, approval limits, segregation of duties, idempotency keys, a 24 h approval TTL and source-fingerprint re-checks all run in the backend at both approval and execution. The adapter is simulated and also idempotent. Postconditions are verified by re-investigating the case.
+## Sponsor technology
 
-**The model never touches money.** Nemotron, when configured, only phrases explanations. Each sentence it returns must cite record ids that exist in the case. Each dollar amount must match a value the engine computed. Anything else is dropped and counted (see `tests/test_model_path.py`).
+Each status is what `python3 run.py --check-integrations` reports. **LIVE** means a real execution or request succeeded. **CONFIGURED_UNVERIFIED** means it is configured but nothing has succeeded yet. **FALLBACK** means local or simulated. **UNAVAILABLE** means it is configured and the last attempt failed. A local mock never counts as LIVE.
+
+| Sponsor | How PayProof uses it | Status in this repo |
+|---|---|---|
+| **Meterless: World Model engine** | Meterless engines are reference architectures you implement in your own stack. `payproof/world_model.py` implements the World Model spec in Python, and it does four jobs: **(1)** evidence intake, with every source record ingested with provenance and bitemporal edges (effective vs recorded time); **(2)** an **independent verifier cross-check**, where the World Model's as-of-cutoff graph must contain exactly the cash events the engine counted; **(3)** the **context builder** for the model prompt; **(4)** the **stale-evidence gate**, where an action expires if re-ingest at approval or execution reports `changed=true`. Its audit is written as JSONL to `logs/`. | **LIVE (in-process)** on every investigation. It passes a one-to-one Python port of the official 8-check conformance suite, 8/8. The official TypeScript runner was not run in the build environment. |
+| **Zetaris** | Federated read of the six source systems through the documented direct REST SQL route (`POST {ZETARIS_REST_URL}/sql-editor/sqls/run`, Bearer key + `X-Org-ID`). It sends one fixed, validated `SELECT` per system and shows per-system provenance in every investigation. | **Implemented, not yet run against a live Zetaris** (no instance or credentials in the build environment). Contract-tested against a local stub. Setup: `scripts/export_zetaris_csv.py` + `docs/zetaris/register.sql`. |
+| **NVIDIA Nemotron** | Phrases the explanation and the strongest counterargument from World Model context, validated against the evidence index. | **Implemented, not yet called with a real key.** Default endpoint `https://integrate.api.nvidia.com/v1`; set `NVIDIA_API_KEY`. |
+| **Cursor** | Development environment | **Open blocker:** this codebase was produced in a Claude Code session. The rules require development in Cursor. Project rules are in `.cursor/rules/`. |
+
+Full matrix, evidence and remaining steps: [`docs/INTEGRATIONS.md`](docs/INTEGRATIONS.md).
 
 ## Benchmark (actual results)
 
-Source: `python3 -m payproof.bench` (25 synthetic cases, hand-labelled ground truth in `bench/ground_truth.json`). The full report is in [`docs/BENCHMARK.md`](docs/BENCHMARK.md).
+`python3 -m payproof.bench` runs 25 synthetic, hand-labelled cases. Ground truth is in `bench/ground_truth.json`, and the full report is [`docs/BENCHMARK.md`](docs/BENCHMARK.md).
 
 | Metric | PayProof | Rules-only baseline |
 |---|---|---|
 | Decision accuracy (status + verdict + action, + amount when money moves) | 25/25 | 11/25 |
-| Exact due amount | 20/20 | 11/20 |
+| Exact due amount / mean abs. error | 20/20 / $0.00 | 11/20 / $835.00 |
 | Wrong payroll adjustments recommended | 0 | 10 |
-| Correct abstention when evidence is missing or contradictory | 5/5 | 0/5 |
+| Correct abstention (missing or contradictory evidence) | 5/5 | 0/5 |
 | Citation coverage of material claims | 100% | 0% |
-| Unauthorized approvals/executions succeeded | 0 / 151 attempts | n/a |
+| Unauthorized approvals/executions that succeeded | 0 / 151 attempts | n/a |
 | Duplicate actions from 125 concurrent re-executions | 0 | n/a |
-| Stale-evidence executions blocked | 8 / 8 | n/a |
-| Reproducibility (identical proof hash) | 100% | — |
+| Stale evidence between approval and execution: blocked | 8 / 8 | n/a |
+| Forced postcondition failures: receipts issued anyway | 0 / 25 | n/a |
+| Reproducibility (identical proof hash) | 100% | n/a |
+| Latency per investigation (local) | p50 ≈ 3 ms | n/a |
 
-**Read these honestly.** One team wrote both the cases and the engine, so 25/25 shows the engine implements its stated policy. It is not evidence of generalization. The baseline is a deliberately simple strawman that shows what evidence-blind automation gets wrong, not a competitor. The benchmark ran with the model in deterministic-fallback mode.
+**Model path:** every benchmark run used the deterministic narrator; **no live Nemotron results exist**. A stub endpoint that returns hallucinated ids and invented amounts has those claims dropped by the validator (`tests/test_model_path.py`), but that is a test, not a model evaluation.
 
-## Sponsor technology — truthful status
+## API
 
-| Sponsor | Use in PayProof | Status in this repo |
+Calls carry `X-Demo-User: ana|fin|ctl|ops|rep`. This is demo-only authentication with synthetic users, not production auth.
+
+| Method | Path | |
 |---|---|---|
-| NVIDIA Nemotron | Explanation and strongest-counterargument phrasing (cite-checked) | **Implemented, tested against a local OpenAI-compatible stub only.** Not run against live Nemotron (no key in the build environment). |
-| Meterless Nightshift | AI provider for Nemotron (`LLM_BASE_URL` → Nightshift endpoint) | **Not verified.** Nightshift has no Linux build and wasn't available here. |
-| Meterless Engine | World Model ranking of counterfactual scenarios (advisory; cannot change amounts) | **Adapter only; HTTP contract is an assumption and is untested.** Deterministic ranking is the default. |
-| Zetaris | Federated query over 6 source systems via allowlisted SQL templates | **Adapter only, untested against Zetaris.** Local fixtures are the default, with per-system provenance shown in the UI. |
-| Cursor | Development environment | `.cursor/rules/payproof.mdc` included. This build session used Claude Code. |
-
-Details and the remaining steps are in [`docs/INTEGRATIONS.md`](docs/INTEGRATIONS.md). The organiser rules (as relayed in a public team tracker) require a Meterless engine in a real feature and Nightshift as the AI provider. **These are open submission blockers until they are verified on a machine running Meterless.**
+| GET | `/api/cases` · `/api/cases/{id}` · `/api/cases/{id}/sources` | queue, full investigation, original records |
+| POST | `/api/cases/{id}/actions` | propose (analyst) |
+| POST | `/api/actions/{id}/decision` | `{"decision":"approve"\|"reject"}` (approver within limits) |
+| POST | `/api/actions/{id}/execute` | header `Idempotency-Key` (payroll ops / controller) |
+| POST | `/api/cases/{id}/simulate/late-event` · `/api/sim/fail-next` | stale-evidence and failure demos |
+| GET | `/api/audit` · `/api/integrations` · `/api/benchmark` | |
 
 ## Repository map
 
 ```
+run.py               programmatic entry (serve, one run, samples, integration check)
 payproof/
-  money.py           exact Decimal helpers (floats rejected)
-  sources.py         LocalFixtureSource, ZetarisSource (allowlisted SQL), late-event overlay
-  evidence.py        evidence index + provenance, identity resolution, evidence graph
-  policy.py          deterministic commission engine (PLAN-AE-2026), scenario views
+  world_model.py     Meterless World Model engine (Python) + PayProof wiring
+  sources.py         fixtures, ZetarisSource (documented REST route), late-event overlay
+  evidence.py        evidence index, provenance, identity resolution, evidence graph
+  policy.py          deterministic commission engine (PLAN-AE-2026)
   counterfactual.py  scenario generation + replay
-  workflow.py        investigator, skeptic, policy verifier, planner, validator, proof bundle
-  llm.py             bounded Nemotron client (OpenAI-compatible) + deterministic fallback
-  meterless.py       Meterless engine adapter (advisory ranking) + fallback
-  actions.py         state machine, authz, idempotency, simulated adapter, hash-chained audit
-  server.py          stdlib HTTP API + static UI
-  bench.py           benchmark + baseline + safety suite
-web/                 Decision Room (vanilla JS, no build)
-data/cases/          25 synthetic source snapshots (6 systems each); data/plans.json
-bench/               ground_truth.json (hand-written), results/latest.json
-docs/                ARCHITECTURE, INTEGRATIONS, BENCHMARK, DEMO_SCRIPT, deck.html
-tests/               unittest suite
+  workflow.py        investigator, skeptic, verifier, planner, validator, proof bundle
+  llm.py             bounded Nemotron client, /models verification, fallback
+  actions.py         state machine, authz, idempotency, stale gate, simulated adapter, audit
+  integrations.py    runtime sponsor status
+  server.py · bench.py
+web/                 Decision Room (vanilla JS)
+data/                25 synthetic cases, plan, Zetaris CSV export
+samples/             3 sample inputs/outputs + traces
+docs/                ARCHITECTURE, INTEGRATIONS, BENCHMARK, DEMO_SCRIPT, SUBMISSION_CHECKLIST, deck.html/.pdf, img/
+tests/               44 tests
 ```
-
-## API
-
-All calls carry `X-Demo-User: ana|fin|ctl|ops|rep`. This is demo-only authentication with synthetic users, and it is not production auth.
-
-| Method | Path | Notes |
-|---|---|---|
-| GET | `/api/cases` | queue (sales reps only see their own) |
-| GET | `/api/cases/{id}` | full investigation: proof bundle, graph, counterfactuals, skeptic, action |
-| GET | `/api/cases/{id}/sources` | original source records, unmodified |
-| POST | `/api/cases/{id}/actions` | propose (analyst) |
-| POST | `/api/actions/{id}/decision` | `{"decision":"approve"\|"reject"}` (approver, within limits) |
-| POST | `/api/actions/{id}/execute` | header `Idempotency-Key` (payroll ops / controller) |
-| POST | `/api/cases/{id}/simulate/late-event` | inject a late-arriving credit note (stale-evidence demo) |
-| POST | `/api/sim/fail-next` | make the next adapter call fail |
-| GET | `/api/audit` · `/api/integrations` · `/api/benchmark` | |
 
 ## Known limitations
 
-- Action and audit state is in-memory: a restart resets the demo. The audit is also mirrored to `var/audit.jsonl`.
-- There is one commission plan. Accelerators, quotas and multi-period clawback rules are out of scope.
-- Authentication is a demo user switcher. Real deployment needs SSO plus role mapping.
-- Sponsor integrations are unverified, as listed above.
+- Action and audit state is in memory, so a restart resets the demo. The audit is mirrored to `var/audit.jsonl`.
+- There is one commission plan. Accelerators, quotas and multi-period clawbacks are out of scope.
+- Authentication is a demo user switcher.
+- Zetaris and Nemotron have not been exercised live. The Cursor requirement is unmet by this build session (see above).
+- The benchmark cases were authored by the same team as the engine.
+
+## Future enhancements
+
+- Live Zetaris semantic layer over real HRIS/CRM/billing connectors.
+- H-MEM memory of prior dispute rulings per plan clause.
+- Durable event store.
+- SSO with role mapping.
+- An independent, externally labelled benchmark set.

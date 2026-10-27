@@ -1,0 +1,54 @@
+{
+  "name": "PeoplePay-360 / PayProof",
+  "repository": "victrvondoom/Open-Agent",
+  "summary": "Proof-carrying commission dispute resolution. For a sales rep's pay dispute it reconciles HRIS, CRM, contracts, billing, comp plan and payroll records. It computes what should have been paid with deterministic decimal code, has a skeptic try to falsify the explanation, replays counterfactuals, and proposes one approval-gated action that executes at most once on a simulated payroll adapter and is verified afterwards. Missing or contradictory evidence means it abstains.",
+  "track": "Track 02 — The Agent That Can Explain Why",
+  "licence": "unspecified",
+  "data": "synthetic only (25 hand-labelled dispute cases); no real people, money or payroll systems",
+  "agents": [
+    {"step": "investigator", "role": "assembles evidence, proposes the initial explanation and the reconciliation waterfall", "model": "code; optional Nemotron phrasing"},
+    {"step": "skeptic", "role": "tests evidence that would falsify the explanation, linked to counterfactual replays", "model": "code; optional Nemotron phrasing of the strongest counterargument"},
+    {"step": "policy verifier", "role": "recomputes every amount from cited records, checks invariants, conflict materiality and the World Model as-of-cutoff cross-check", "model": "code"},
+    {"step": "resolution planner", "role": "proposes one typed action with permission, preconditions and idempotency key", "model": "code"},
+    {"step": "final validator", "role": "drops claims citing unknown records or amounts the engine did not compute; blocks unsafe actions", "model": "code"},
+    {"step": "action service", "role": "backend authorization, approval limits, segregation of duties, stale-evidence gate, simulated execution, postcondition re-investigation, hash-chained audit", "model": "code"}
+  ],
+  "sponsor_technology": {
+    "meterless": {
+      "status": "working (in-process)",
+      "engines": ["World Model"],
+      "where": "payproof/world_model.py — Python implementation of the Meterless World Model reference (stable ids, merge banding, provenance-required writes, bitemporal edges, idempotent ingest, ordered audit)",
+      "used_for": [
+        "evidence intake: every investigation ingests the case's source records with provenance (source system, recorded time) and typed bitemporal relationships (validFrom = effective time)",
+        "verifier cross-check: the World Model's as-of-cutoff graph view must contain exactly the cash events the policy engine counted",
+        "model context builder: the Nemotron prompt is built from the World Model neighbourhood of the disputed opportunity",
+        "stale-evidence gate: actions snapshot the World Model at proposal; approval and execution re-ingest and expire the action if ingest reports changed=true",
+        "judge evidence: World Model audit written as JSONL to logs/ and samples/logs/"
+      ],
+      "verification": "tests/test_world_model.py: one-to-one Python port of the official 8-check conformance suite (engines/world-model/conformance/runner.ts) — 8/8 pass. The official TypeScript runner itself was not run in the build environment.",
+      "not_used": ["Meterless Nightshift", "H-MEM", "Markovian", "Scout Intent"]
+    },
+    "zetaris": {
+      "status": "adapter implemented to the documented direct REST SQL route; not yet run against a live Zetaris",
+      "where": "payproof/sources.py ZetarisSource; scripts/export_zetaris_csv.py; docs/zetaris/register.sql; tests/test_zetaris.py",
+      "used_for": "federated read of the six source systems, one fixed, validated SELECT per system, with per-system provenance shown in every investigation"
+    },
+    "nvidia": {
+      "status": "client implemented for https://integrate.api.nvidia.com/v1; not yet called with a real key",
+      "where": "payproof/llm.py",
+      "used_for": "Nemotron phrases the explanation and the strongest counterargument; never computes money, status or permissions; output validated against the evidence index"
+    },
+    "cursor": {
+      "status": "BLOCKER: this repository was built in a Claude Code session; the team must do and document its development in Cursor",
+      "where": ".cursor/rules/payproof.mdc"
+    }
+  },
+  "entry_points": {
+    "ui_and_api": "python3 run.py",
+    "one_run": "python3 run.py --case CASE-1001",
+    "integration_check": "python3 run.py --check-integrations",
+    "tests": "python3 -m unittest discover -s tests",
+    "benchmark": "python3 -m payproof.bench"
+  },
+  "pre_existing_components": "none; all code and synthetic data were created on 2026-10-27, inside the build window"
+}

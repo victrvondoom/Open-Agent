@@ -1,3 +1,5 @@
 var/
 .git/
 __pycache__/
+logs/
+.env

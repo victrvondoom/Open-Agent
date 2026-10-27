@@ -28,6 +28,15 @@
   .foot { position:fixed; bottom:14px; right:20px; color:var(--dim); font-size:13px; }
   .warn { color:var(--warn); } .bad { color:var(--bad); } .ok { color:var(--accent); }
   ul { margin:0; padding-left:22px; } li { margin:6px 0; }
+  .shot { max-width:100%; max-height:52vh; border:1px solid var(--line); border-radius:10px; display:block; }
+  .two { display:grid; grid-template-columns:1fr 1fr; gap:16px; align-items:start; }
+  @page { size: 1280px 720px; margin: 0; }
+  @media print {
+    html, body { height:auto; }
+    .slide { display:flex !important; height:720px; min-height:720px; page-break-after:always; break-after:page; padding:40px 70px; overflow:hidden; }
+    .foot { display:none; }
+    .shot { max-height:430px; }
+  }
 </style>
 </head>
 <body>
@@ -49,6 +58,7 @@
     <div class="card"><b>Payroll</b><br>$3,600 paid, then the same clawback twice</div>
   </div>
   <p class="dim" style="margin-top:20px">Analysts reconcile this by hand. Chatbots guess. Neither leaves a proof, and neither is safe to let near payroll.</p>
+  <p><b>Target users:</b> sales-compensation and payroll operations analysts, finance approvers, and the reps who file disputes.</p>
 </section>
 
 <section class="slide">
@@ -112,29 +122,87 @@
     <tr><td>Correct abstention when evidence is missing or contradictory</td><td class="num">5/5</td><td class="num">0/5</td></tr>
     <tr><td>Citation coverage of material claims</td><td class="num">100%</td><td class="num">0%</td></tr>
     <tr><td>Unauthorized actions succeeded / attempts</td><td class="num">0 / 151</td><td class="num">n/a</td></tr>
+    <tr><td>Forced postcondition failures that still produced a receipt</td><td class="num">0 / 25</td><td class="num">n/a</td></tr>
+    <tr><td>Forced postcondition failures that still produced a receipt</td><td class="num">0 / 25</td><td class="num">n/a</td></tr>
     <tr><td>Duplicate actions from 125 concurrent re-executions</td><td class="num">0</td><td class="num">n/a</td></tr>
     <tr><td>Stale-evidence executions blocked</td><td class="num">8 / 8</td><td class="num">n/a</td></tr>
   </table>
-  <p class="dim">Limitations: the cases and the engine were written by the same team, so these results show policy fidelity, not generalisation. The baseline is a transparent strawman. The model ran in fallback mode for this benchmark.</p>
+  <p class="dim">Limitations: the cases and the engine were written by the same team, so these results show policy fidelity, not generalisation. The baseline is a transparent strawman. The model ran in deterministic-fallback mode, so there are no live-model results.</p>
+</section>
+
+<section class="slide">
+  <div class="k">How Zetaris and Meterless are used</div>
+  <h2>Meterless World Model as the evidence backbone</h2>
+  <div class="grid">
+    <div class="card"><b>1 · Evidence intake</b><br>Every source record is ingested with provenance (source system, recorded time) and bitemporal edges (validFrom = effective time).</div>
+    <div class="card"><b>2 · Verifier cross-check</b><br>The World Model's as-of-cutoff view must contain exactly the cash events the Decimal engine counted. Otherwise the proof is REJECTED.</div>
+    <div class="card"><b>3 · Context builder</b><br>The Nemotron prompt is built from the World Model neighbourhood of the disputed deal.</div>
+    <div class="card"><b>4 · Stale-evidence gate</b><br>Each action snapshots the World Model. If re-ingest reports <code>changed=true</code> at approval or execution, the action EXPIRES.</div>
+  </div>
+  <p style="margin-top:16px"><b>Zetaris:</b> one fixed, validated SELECT per source system over the documented REST SQL route, with per-system provenance on every investigation.</p>
+  <p class="dim"><b>What's unique:</b> the bitemporal edges carry the core payroll distinction, value date versus recorded date. The engine's idempotency contract becomes a payroll safety control.</p>
 </section>
 
 <section class="slide">
   <div class="k">Sponsor technology — truthful status</div>
-  <h2>What is live, what is an adapter</h2>
+  <h2>What is live, and what isn't yet</h2>
   <table>
-    <tr><td><b>NVIDIA Nemotron</b></td><td>Explanation and counterargument phrasing, cite-checked. Client implemented; tested against a local stub only.</td></tr>
-    <tr><td><b>Meterless Nightshift</b></td><td>Intended AI provider (OpenAI-compatible endpoint). <span class="warn">Not yet verified.</span></td></tr>
-    <tr><td><b>Meterless Engine</b></td><td>World Model ranking of counterfactual scenarios, advisory only. <span class="warn">Adapter only; API contract unverified.</span></td></tr>
-    <tr><td><b>Zetaris</b></td><td>Federated query over 6 systems with allowlisted SQL templates. <span class="warn">Adapter only; untested.</span></td></tr>
-    <tr><td><b>Cursor</b></td><td>Development environment; project rules in <code>.cursor/rules</code>.</td></tr>
+    <tr><td><b>Meterless World Model</b></td><td class="ok">LIVE in-process on every investigation. A one-to-one port of the official 8-check conformance suite passes 8/8.</td></tr>
+    <tr><td><b>Zetaris</b></td><td><span class="warn">Implemented to the documented REST route; not yet run against a live instance</span>. Stub-contract-tested; live smoke test included.</td></tr>
+    <tr><td><b>NVIDIA Nemotron</b></td><td><span class="warn">Client for integrate.api.nvidia.com implemented; not yet called with a real key.</span> Output is cite- and amount-checked.</td></tr>
+    <tr><td><b>Cursor</b></td><td><span class="bad">Open item:</span> this build was produced in Claude Code. The team's Cursor use must be described truthfully.</td></tr>
   </table>
-  <p class="dim">The UI header shows each integration's real runtime mode. Nothing is labelled live unless it actually answered.</p>
+  <p class="dim">The UI shows LIVE / CONFIGURED_UNVERIFIED / FALLBACK / UNAVAILABLE from runtime outcomes. A mock never reads LIVE.</p>
+</section>
+
+<section class="slide">
+  <div class="k">Technical stack</div>
+  <h2>Small, reproducible, judge-runnable</h2>
+  <div class="grid">
+    <div class="card"><b>Core</b><br>Python standard library only, <code>decimal</code> money, an event-sourced Meterless World Model, and a stdlib HTTP API</div>
+    <div class="card"><b>UI</b><br>Vanilla JS Decision Room, no build step, responsive</div>
+    <div class="card"><b>Data</b><br>Zetaris REST SQL or local synthetic fixtures (SAMPLE_MODE)</div>
+    <div class="card"><b>Model</b><br>NVIDIA Nemotron via OpenAI-compatible API, at most 2 calls per run, cached</div>
+    <div class="card"><b>Evidence</b><br>JSONL traces in <code>logs/</code>, 3 samples, 44 tests, a 25-case benchmark</div>
+    <div class="card"><b>Run</b><br><code>python3 run.py</code> or Docker; <code>run.py --check-integrations</code></div>
+  </div>
+</section>
+
+<section class="slide">
+  <div class="k">Product visuals</div>
+  <h2>The Decision Room</h2>
+  <div class="two">
+    <img class="shot" src="img/03-waterfall-skeptic.png" alt="Reconciliation waterfall and skeptic findings">
+    <img class="shot" src="img/05-rep-blocked.png" alt="Approval panel with backend 403 for the sales rep">
+  </div>
+</section>
+
+<section class="slide">
+  <div class="k">Product visuals</div>
+  <h2>Evidence graph and execution receipt</h2>
+  <div class="two">
+    <img class="shot" src="img/02-evidence-graph.png" alt="Temporal evidence timeline and graph">
+    <img class="shot" src="img/06-receipt-audit.png" alt="Execution receipt and hash-chained audit">
+  </div>
+</section>
+
+<section class="slide">
+  <div class="k">Future enhancements</div>
+  <h2>Next</h2>
+  <ul>
+    <li>A live Zetaris semantic layer over real HRIS / CRM / billing / payroll connectors</li>
+    <li>Meterless H-MEM memory of prior rulings per plan clause, so precedent is cited in new disputes</li>
+    <li>A durable event store, SSO with role mapping, and real payroll adapters behind the same gate</li>
+    <li>Multi-plan support: accelerators, quotas, multi-period clawbacks</li>
+    <li>An independent, externally labelled benchmark set</li>
+  </ul>
 </section>
 
 <section class="slide">
   <div class="k">Try it</div>
-  <h1 style="font-family:ui-monospace,Menlo,monospace;font-size:clamp(22px,3vw,34px)">python3 -m payproof.server</h1>
+  <h1 style="font-family:ui-monospace,Menlo,monospace;font-size:clamp(22px,3vw,34px)">python3 run.py</h1>
   <p>No dependencies and no credentials. It opens on CASE-1001 at http://127.0.0.1:8360.</p>
+  <p class="dim">github.com/victrvondoom/Open-Agent</p>
   <p class="dim">python3 -m unittest discover -s tests · python3 -m payproof.bench</p>
 </section>
 <div class="foot"><span id="n"></span> · ← → to navigate</div>

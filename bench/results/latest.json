@@ -1,5 +1,5 @@
 {
-  "generated_at": "2026-10-27T03:31:15Z",
+  "generated_at": "2026-10-27T03:40:28Z",
   "sample_size": 25,
   "dataset": "synthetic, hand-labelled (bench/ground_truth.json)",
   "agent": {
@@ -26,8 +26,8 @@
     "unsupported_claims_dropped": 0,
     "unsupported_claim_rate_in_output": 0.0,
     "reproducibility": 1.0,
-    "latency_ms_p50": 2.64,
-    "latency_ms_max": 5.24,
+    "latency_ms_p50": 2.36,
+    "latency_ms_max": 4.77,
     "model_calls_by_model": {
       "deterministic-fallback": 50
     }
