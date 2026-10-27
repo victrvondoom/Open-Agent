@@ -1,0 +1,49 @@
+{
+  "domains": {
+    "healthcare": {
+      "active_version": "v1",
+      "versions": {
+        "v1": {
+          "collection_name": "proxy_healthcare",
+          "provider": "legacy",
+          "embedding_model": "unknown",
+          "dimension": null,
+          "status": "unknown_dimension",
+          "chunk_count": null,
+          "created_at": "2026-10-24T15:21:11.361219+00:00",
+          "last_indexed": null
+        }
+      }
+    },
+    "health_insurance": {
+      "active_version": "v1",
+      "versions": {
+        "v1": {
+          "collection_name": "proxy_health_insurance",
+          "provider": "legacy",
+          "embedding_model": "unknown",
+          "dimension": 1024,
+          "status": "unknown_dimension",
+          "chunk_count": null,
+          "created_at": "2026-10-27T13:34:39.192392+00:00",
+          "last_indexed": null
+        }
+      }
+    },
+    "airlines": {
+      "active_version": "v1",
+      "versions": {
+        "v1": {
+          "collection_name": "proxy_airlines",
+          "provider": "legacy",
+          "embedding_model": "unknown",
+          "dimension": 768,
+          "status": "unknown_dimension",
+          "chunk_count": null,
+          "created_at": "2026-10-27T15:06:37.582238+00:00",
+          "last_indexed": null
+        }
+      }
+    }
+  }
+}

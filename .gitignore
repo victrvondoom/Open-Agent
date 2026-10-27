@@ -4,3 +4,11 @@ var/
 .env
 .venv/
 logs/
+
+# RECLAIM (reclaim/) build and cache output
+node_modules/
+.next/
+.vercel/
+*.tsbuildinfo
+.pytest_cache/
+.ruff_cache/

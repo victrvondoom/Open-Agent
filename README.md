@@ -730,6 +730,8 @@ bench/                 ground truth, security corpus, generated results
 samples/               sample inputs, outputs and traces
 docs/                  architecture, integrations, benchmark, demo script, checklist, deck, video
 tests/                 98 tests (76 PayProof, 22 RECLAIM bridge and verifier), including the official H-MEM and World Model conformance checks
+reclaim/               RECLAIM consumer-dispute platform: FastAPI backend, Next.js frontend, knowledge base, deployment files
+                       Open-Agent calls its agents over HTTP (payproof/reclaim_bridge.py), so the two run as one project
 ```
 
 ---

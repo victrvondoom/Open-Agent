@@ -1,0 +1,141 @@
+.aperture-page {
+  --void: #f7f4ec;
+  --cream: #fcfaf5;
+  --cream-panel: #f4efe2;
+  --cream-dark: #ebe3d1;
+  --ink: #231f1d;
+  --ember: #ea580c;
+  --cyan: #0284c7;
+  --violet: #7c3aed;
+  --amber: #f59e0b;
+  --bone: #1a1715;
+
+  --font-display: var(--font-aperture-display), "Instrument Serif", serif;
+  --font-body: var(--font-aperture-body), Inter, ui-sans-serif, system-ui, sans-serif;
+  --font-mono: var(--font-aperture-mono), "JetBrains Mono", ui-monospace, monospace;
+
+  background-color: var(--void);
+  background-image: radial-gradient(#d5ccbc 1.5px, transparent 1.5px);
+  background-size: 20px 20px;
+  color: var(--bone);
+  font-family: var(--font-body);
+  min-height: 100vh;
+  overflow-x: hidden;
+}
+
+.aperture-page * {
+  box-sizing: border-box;
+}
+
+.aperture-page ::selection {
+  background: #fbbf24;
+  color: #1a1715;
+}
+
+.aperture-page a,
+.aperture-page button {
+  -webkit-tap-highlight-color: transparent;
+}
+
+.aperture-page a:focus-visible,
+.aperture-page button:focus-visible {
+  outline: 2px solid #0284c7;
+  outline-offset: 2px;
+}
+
+/* Creamy White Tactile Solid Panels (Zero Glass / Zero Frosted Blur) */
+.aperture-glass,
+.aperture-card {
+  background-color: #ffffff;
+  border: 2px solid #231f1d;
+  box-shadow: 4px 4px 0px #231f1d;
+  border-radius: 8px;
+  backdrop-filter: none !important;
+  -webkit-backdrop-filter: none !important;
+}
+
+.aperture-card-sm {
+  background-color: #ffffff;
+  border: 1.5px solid #231f1d;
+  box-shadow: 2px 2px 0px #231f1d;
+  border-radius: 6px;
+  backdrop-filter: none !important;
+  -webkit-backdrop-filter: none !important;
+}
+
+.aperture-card-lg {
+  background-color: #fdfbf7;
+  border: 2px solid #231f1d;
+  box-shadow: 6px 6px 0px #231f1d;
+  border-radius: 12px;
+  backdrop-filter: none !important;
+  -webkit-backdrop-filter: none !important;
+}
+
+.aperture-spine {
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  left: 2rem;
+  width: 1px;
+  background: linear-gradient(
+    to bottom,
+    transparent,
+    rgba(35, 31, 29, 0.12) 8%,
+    rgba(35, 31, 29, 0.12) 92%,
+    transparent
+  );
+}
+
+@media (max-width: 900px) {
+  .aperture-spine {
+    left: 1rem;
+  }
+}
+
+.aperture-nav-link {
+  font-family: var(--font-mono);
+  font-size: 0.78rem;
+  color: var(--bone);
+  opacity: 0.75;
+  text-decoration: none;
+}
+
+.aperture-nav-link:hover {
+  opacity: 1;
+  color: var(--cyan);
+}
+
+.aperture-spin {
+  animation: aperture-spin 0.8s linear infinite;
+}
+
+@keyframes aperture-spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+.aperture-fade-up {
+  opacity: 0;
+  transform: translateY(10px);
+  animation: aperture-reveal 0.5s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+}
+
+@keyframes aperture-reveal {
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .aperture-page *,
+  .aperture-page *::before,
+  .aperture-page *::after {
+    animation-duration: 0.001ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.001ms !important;
+    scroll-behavior: auto !important;
+  }
+}

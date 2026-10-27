@@ -1,0 +1,286 @@
+@import url('https://fonts.googleapis.com/css2?family=EB+Garamond:ital,wght@0,400..800;1,400..800&family=Figtree:ital,wght@0,300..900;1,300..900&family=JetBrains+Mono:wght@400..700&display=swap');
+
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+:root {
+  /* Editorial & Interactive Typography Stacks */
+  --font-serif: var(--font-serif, 'EB Garamond', 'Anthropic Serif', 'Tiempos', 'Galaxie Copernicus', 'Georgia', serif);
+  --font-sans: var(--font-sans, 'Figtree', 'Anthropic Sans', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif);
+  --font-mono: var(--font-mono, 'JetBrains Mono', 'SFMono-Regular', Menlo, monospace);
+
+  /* Creamy White Base Palette */
+  --resolve-black: #fcfaf5;
+  --resolve-cream: #fbf7ef;
+  --resolve-cream-panel: #f4efe2;
+  --resolve-cream-dark: #ebe3d1;
+  --resolve-glass: #ffffff;
+  --resolve-glass-strong: #ffffff;
+  --resolve-line: #231f1d;
+  --resolve-text: #1a1715;
+  --resolve-muted: #575147;
+  --resolve-tertiary: #857e72;
+
+  /* Retro-Modern Pixel 3D Accent Tokens */
+  --resolve-cyan: #0284c7;
+  --resolve-purple: #7c3aed;
+  --resolve-green: #15803d;
+  --resolve-amber: #d97706;
+  --resolve-red: #dc2626;
+
+  --proxy-black: var(--resolve-black);
+  --proxy-cream: var(--resolve-cream);
+  --proxy-cream-panel: var(--resolve-cream-panel);
+  --proxy-cream-dark: var(--resolve-cream-dark);
+  --proxy-glass: var(--resolve-glass);
+  --proxy-glass-strong: var(--resolve-glass-strong);
+  --proxy-line: var(--resolve-line);
+  --proxy-text: var(--resolve-text);
+  --proxy-muted: var(--resolve-muted);
+  --proxy-tertiary: var(--resolve-tertiary);
+  --proxy-cyan: var(--resolve-cyan);
+  --proxy-purple: var(--resolve-purple);
+  --proxy-green: var(--resolve-green);
+  --proxy-amber: var(--resolve-amber);
+  --proxy-red: var(--resolve-red);
+
+  /* Pixel 3D Geometry */
+  --pixel-border: #231f1d;
+  --pixel-shadow: 4px 4px 0px #231f1d;
+  --pixel-shadow-sm: 2px 2px 0px #231f1d;
+  --pixel-shadow-lg: 6px 6px 0px #231f1d;
+}
+
+html {
+  background: #f7f4ec;
+  color: var(--proxy-text);
+  text-rendering: geometricPrecision;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+body {
+  margin: 0;
+  min-height: 100vh;
+  background-color: #f7f4ec;
+  color: var(--proxy-text);
+  font-family: var(--font-sans);
+  letter-spacing: -0.011em;
+  background-image: radial-gradient(#d5ccbc 1.5px, transparent 1.5px);
+  background-size: 20px 20px;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+/* Custom Scrollbars in Creamy Pixel Style */
+* {
+  scrollbar-width: thin;
+  scrollbar-color: #cfc4b0 transparent;
+}
+*::-webkit-scrollbar {
+  width: 6px;
+  height: 6px;
+}
+*::-webkit-scrollbar-track {
+  background: transparent;
+}
+*::-webkit-scrollbar-thumb {
+  background: #cfc4b0;
+  border-radius: 0px;
+  border: 1px solid #231f1d;
+}
+
+::selection {
+  background: #fbbf24;
+  color: #1a1715;
+}
+
+button, a, input, textarea, select {
+  -webkit-tap-highlight-color: transparent;
+}
+
+button:focus-visible, a:focus-visible, input:focus-visible, textarea:focus-visible {
+  outline: 2px solid #0284c7;
+  outline-offset: 2px;
+}
+
+/* Pixel 3D Structure & Cards */
+.pixel-card {
+  background-color: #ffffff;
+  border: 2px solid #231f1d;
+  box-shadow: 4px 4px 0px #231f1d;
+  border-radius: 8px;
+}
+
+.pixel-card-sm {
+  background-color: #ffffff;
+  border: 1.5px solid #231f1d;
+  box-shadow: 2px 2px 0px #231f1d;
+  border-radius: 6px;
+}
+
+.pixel-card-lg {
+  background-color: #ffffff;
+  border: 2px solid #231f1d;
+  box-shadow: 6px 6px 0px #231f1d;
+  border-radius: 10px;
+}
+
+/* Pixel 3D Tactile Buttons */
+.pixel-btn {
+  background-color: #ffffff;
+  color: #1a1715;
+  border: 2px solid #231f1d;
+  box-shadow: 3px 3px 0px #231f1d;
+  border-radius: 6px;
+  font-weight: 700;
+  transition: transform 0.08s ease, box-shadow 0.08s ease, background-color 0.1s ease;
+  user-select: none;
+}
+.pixel-btn:hover {
+  transform: translate(-1px, -1px);
+  box-shadow: 4px 4px 0px #231f1d;
+  background-color: #faf7f0;
+}
+.pixel-btn:active {
+  transform: translate(2px, 2px);
+  box-shadow: 1px 1px 0px #231f1d;
+}
+
+.pixel-btn-primary {
+  background-color: #f59e0b;
+  color: #1a1715;
+  border: 2px solid #231f1d;
+  box-shadow: 3px 3px 0px #231f1d;
+  border-radius: 6px;
+  font-weight: 800;
+  transition: transform 0.08s ease, box-shadow 0.08s ease;
+}
+.pixel-btn-primary:hover {
+  background-color: #fbbf24;
+  transform: translate(-1px, -1px);
+  box-shadow: 4px 4px 0px #231f1d;
+}
+.pixel-btn-primary:active {
+  transform: translate(2px, 2px);
+  box-shadow: 1px 1px 0px #231f1d;
+}
+
+.pixel-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 2px 8px;
+  border: 1.5px solid #231f1d;
+  box-shadow: 2px 2px 0px #231f1d;
+  border-radius: 4px;
+  font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+  font-size: 11px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  background-color: #ffffff;
+  color: #1a1715;
+}
+
+/* Creamy white pixel card adaptation (Zero Frosted Glass) */
+.bg-glass {
+  background-color: #ffffff !important;
+  border: 2px solid #231f1d !important;
+  box-shadow: 4px 4px 0px #231f1d !important;
+  backdrop-filter: none !important;
+  -webkit-backdrop-filter: none !important;
+}
+
+/* Ensure cards and panels are solid creamy white without frosted blur */
+[class*="backdrop-blur-"]:not([role="dialog"]):not([class*="fixed inset-0"]) {
+  backdrop-filter: none !important;
+  -webkit-backdrop-filter: none !important;
+}
+
+/* Overriding dark background utility classes in creamy context */
+.bg-proxy-black {
+  background-color: #f7f4ec !important;
+}
+
+[class*="bg-black/"] {
+  background-color: #f6efe2 !important;
+  border-color: #231f1d !important;
+  color: #1a1715 !important;
+}
+
+[class*="border-white/"] {
+  border-color: #231f1d !important;
+}
+
+[class*="bg-white/5"], [class*="bg-white/8"], [class*="bg-white/10"], [class*="bg-white/15"] {
+  background-color: #f3ecdf !important;
+  color: #1a1715 !important;
+}
+
+.motion-card {
+  background-color: #ffffff;
+  border: 2px solid #231f1d !important;
+  box-shadow: 4px 4px 0px #231f1d !important;
+  border-radius: 8px !important;
+  transition: transform 0.12s ease, box-shadow 0.12s ease !important;
+}
+.motion-card:hover {
+  transform: translate(-1px, -1px) !important;
+  box-shadow: 5px 5px 0px #231f1d !important;
+}
+
+/* Replace glowing drop shadows with hard pixel 3D shadows */
+.shadow-glow-cyan {
+  box-shadow: 4px 4px 0px #0284c7 !important;
+}
+.shadow-glow-purple {
+  box-shadow: 4px 4px 0px #7c3aed !important;
+}
+.shadow-glow-green {
+  box-shadow: 4px 4px 0px #15803d !important;
+}
+
+.sr-only { position: absolute; width: 1px; height: 1px; padding: 0; margin: -1px; overflow: hidden; clip: rect(0,0,0,0); white-space: nowrap; border: 0; }
+.not-sr-only { position: static; width: auto; height: auto; padding: initial; margin: initial; overflow: visible; clip: auto; white-space: normal; }
+
+/* Editorial Display Typography (EB Garamond / Anthropic Serif) */
+.font-editorial {
+  font-family: var(--font-serif);
+  font-feature-settings: "kern" 1, "liga" 1, "calt" 1;
+  letter-spacing: -0.018em;
+}
+
+.font-editorial-italic {
+  font-family: var(--font-serif);
+  font-style: italic;
+  font-feature-settings: "kern" 1, "liga" 1;
+}
+
+/* UI & Interactive Typography (Figtree / Anthropic Sans) */
+.font-ui {
+  font-family: var(--font-sans);
+  letter-spacing: -0.011em;
+}
+
+/* Technical Code / Timestamp / ID Data (JetBrains Mono) */
+.font-data {
+  font-family: var(--font-mono);
+  font-feature-settings: "zero" 1;
+  letter-spacing: -0.02em;
+}
+
+/* Refined Editorial Citations & Statute Quotes */
+.statute-quote {
+  font-family: var(--font-serif);
+  font-style: italic;
+  font-size: 0.9375rem;
+  line-height: 1.55;
+  color: #292524;
+  border-left: 3px solid #231f1d;
+  padding-left: 0.875rem;
+}
+
