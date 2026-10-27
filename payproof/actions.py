@@ -17,6 +17,7 @@ from pathlib import Path
 from .money import D
 from .sources import sha
 from . import world_model as wm
+from .hmem import PrecedentMemory
 from .llm import ModelClient
 from .workflow import investigate, source_fingerprint
 
@@ -114,12 +115,16 @@ class SimulatedAdapter:
 
 
 class ActionService:
-    def __init__(self, source, plans, audit_path: Path | None = ROOT / "var" / "audit.jsonl", clock=None):
+    def __init__(self, source, plans, audit_path: Path | None = ROOT / "var" / "audit.jsonl", clock=None,
+                 memory_dir: Path | None = None):
         self.source, self.plans = source, plans
         self.audit = AuditLog(audit_path)
         self.adapter = SimulatedAdapter()
         self.actions: dict[str, dict] = {}
         self.worlds: dict[str, wm.WorldModel] = {}  # action id -> Meterless World Model snapshot at proposal
+        self.proposal_investigations: dict[str, dict] = {}  # action id -> investigation that justified it
+        self.memory_dir = memory_dir
+        self.memory = PrecedentMemory(persist_dir=memory_dir)  # Meterless H-MEM: verified precedents only
         self.lock = threading.RLock()
         self.clock = clock or (lambda: datetime.now(timezone.utc))
 
@@ -175,6 +180,7 @@ class ActionService:
             raise ActionError("FORBIDDEN", f"role {u['role']} cannot propose actions", 403)
         with self.lock:
             inv = self.investigate(case_id, use_model=False)
+            inv.pop("_world", None)
             pa = inv["proposed_action"]
             for a in self.actions.values():
                 if a["idempotency_key"] == pa["idempotency_key"] and a["state"] not in {"REJECTED", "EXPIRED"}:
@@ -184,6 +190,7 @@ class ActionService:
                  "proof_hash": inv["proof_hash"], "staleness_checks": [], "approved_by": None, "approved_at": None, "receipt": None,
                  "created_at": self.clock().isoformat(timespec="seconds")}
             self.actions[aid] = a
+            self.proposal_investigations[aid] = inv
             world = wm.WorldModel(namespace=f"{case_id}/{aid}")
             snap = wm.ingest_case(world, self.source.load_case(case_id))
             self.worlds[aid] = world
@@ -284,6 +291,12 @@ class ActionService:
                 "source_fingerprint": a["preconditions"]["source_fingerprint"], "postcondition": post,
                 "audit_seq": last["seq"], "audit_hash": last["hash"], "audit_chain_valid": self.audit.verify_chain(),
             }
+            # Only now, with human approval and a verified postcondition, may the case become precedent.
+            mem = self.memory.record_verified(self.proposal_investigations.get(a["id"], {}), a) \
+                if a["id"] in self.proposal_investigations else None
+            a["receipt"]["precedent_memory_id"] = mem["id"] if mem else None
+            if mem:
+                self.audit.append("PRECEDENT_STORED", "SYSTEM", action_id=a["id"], case_id=a["case_id"], memory_id=mem["id"])
             return a
 
     def verify_postcondition(self, a, row):
@@ -303,6 +316,11 @@ class ActionService:
         with self.lock:
             self.actions.clear()
             self.worlds.clear()
+            self.proposal_investigations.clear()
+            if self.memory_dir:
+                for f in ("state.json", "ledger.jsonl"):
+                    (Path(self.memory_dir) / f).unlink(missing_ok=True)
+            self.memory = PrecedentMemory(persist_dir=self.memory_dir)
             self.adapter = SimulatedAdapter()
             self.source.reset()
             self.audit.append("DEMO_RESET", "SYSTEM")

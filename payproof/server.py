@@ -32,7 +32,8 @@ class App:
     def __init__(self, source=None, audit_path="default"):
         self.source = source or make_source()
         self.plans = load_plans()
-        self.svc = ActionService(self.source, self.plans) if audit_path == "default" else \
+        mem = ROOT / "var" / "hmem" if audit_path == "default" else None
+        self.svc = ActionService(self.source, self.plans, memory_dir=mem) if audit_path == "default" else \
             ActionService(self.source, self.plans, audit_path=audit_path)
         self.cache = {}
 
@@ -163,6 +164,7 @@ def make_handler(app: App):
                 r = app.investigation(g[1])
                 world = r.pop("_world")
                 write_logs(r, world)
+                r["precedents"] = app.svc.memory.recall(r)  # Meterless H-MEM; never alters the proof
                 r["actions"] = [a for a in app.svc.actions.values() if a["case_id"] == g[1]]
                 return 200, r
             if (g := m(r"/api/cases/(CASE-\d{4})/sources")) and method == "GET":
